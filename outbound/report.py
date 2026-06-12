@@ -2,18 +2,21 @@
 
 Pulls aggregate statistics from Smartlead for every campaign that belongs to
 the given briefs, combines with the local events ledger (last 7 days), and
-renders a Rich table.
+renders a Rich table. If SLACK_TOKEN + SLACK_CHANNEL_ID are set in the
+environment, the summary is also posted to that Slack channel.
 
 Usage:
-    outbound report                  # all briefs
+    outbound report                  # all briefs (+ Slack if env vars set)
     outbound report construction     # one brief
-    outbound report --days 14        # wider window for local events
+    outbound report --days 14        # wider window for local event counts
 """
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 
+import requests
 from rich.console import Console
 from rich.table import Table
 
@@ -22,6 +25,8 @@ from .load import smartlead
 from .models import Brief
 
 console = Console()
+
+SLACK_API = "https://slack.com/api/chat.postMessage"
 
 
 def _pct(n: int, total: int) -> str:
@@ -124,6 +129,86 @@ def weekly_report(db: Database, briefs: list[Brief], days: int = 7) -> dict:
     }
 
 
+def _slack_blocks(data: dict) -> list[dict]:
+    """Build Slack Block Kit blocks for the report."""
+    rows = data.get("rows", [])
+    totals = data.get("totals", {})
+    week_events = data.get("week_events", {})
+    generated_at = data.get("generated_at", "")
+
+    blocks: list[dict] = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": "Outbound Report", "emoji": True},
+        },
+        {
+            "type": "context",
+            "elements": [{"type": "mrkdwn", "text": generated_at}],
+        },
+        {"type": "divider"},
+    ]
+
+    for r in rows:
+        sent = r["total"]
+        line = (
+            f"*{r['campaign']}*\n"
+            f"Sent: {sent}  ·  "
+            f"Open: {_pct(r['opened'], sent)}  ·  "
+            f"Reply: {_pct(r['replied'], sent)}  ·  "
+            f"{'✅ ' + str(r['positive']) + ' positive  ·  ' if r['positive'] else ''}"
+            f"{'⚠️ ' + str(r['bounced']) + ' bounced  ·  ' if r['bounced'] else ''}"
+            f"Unsub: {r['unsub']}"
+        )
+        blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": line}})
+
+    sent_total = totals.get("total", 0)
+    summary = (
+        f"*Totals:*  {sent_total} sent  ·  "
+        f"Open: {_pct(totals.get('opened', 0), sent_total)}  ·  "
+        f"Reply: {_pct(totals.get('replied', 0), sent_total)}  ·  "
+        f"✅ {totals.get('positive', 0)} positive  ·  "
+        f"Bounced: {totals.get('bounced', 0)}  ·  "
+        f"Unsub: {totals.get('unsub', 0)}"
+    )
+    blocks.append({"type": "divider"})
+    blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": summary}})
+
+    if week_events:
+        parts = [
+            f"{k.replace('_', ' ')}={v}"
+            for k in ("positive_reply", "reply", "bounce", "unsubscribe")
+            if (v := week_events.get(k, 0))
+        ]
+        if parts:
+            blocks.append({
+                "type": "context",
+                "elements": [{"type": "mrkdwn", "text": "Synced this period: " + "  ·  ".join(parts)}],
+            })
+
+    return blocks
+
+
+def post_to_slack(data: dict) -> None:
+    """Post the report to Slack using SLACK_TOKEN + SLACK_CHANNEL_ID from env."""
+    token = os.environ.get("SLACK_TOKEN", "")
+    channel = os.environ.get("SLACK_CHANNEL_ID", "")
+    if not token or not channel:
+        return
+
+    blocks = _slack_blocks(data)
+    resp = requests.post(
+        SLACK_API,
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        json={"channel": channel, "blocks": blocks},
+        timeout=15,
+    )
+    body = resp.json()
+    if not body.get("ok"):
+        console.print(f"[yellow]Slack post failed:[/yellow] {body.get('error', resp.text)}")
+    else:
+        console.print(f"[green]Posted to Slack channel {channel}[/green]")
+
+
 def print_report(data: dict) -> None:
     if not data:
         console.print("[yellow]No data to display.[/yellow]")
@@ -189,3 +274,4 @@ def print_report(data: dict) -> None:
             console.print(f"  [dim]Synced this period:[/dim]  " + "  ·  ".join(parts))
 
     console.print()
+    post_to_slack(data)
