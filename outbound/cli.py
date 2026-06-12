@@ -9,6 +9,7 @@
     outbound load <industry> [--quota] drain reservoir -> Smartlead (the only sender)
     outbound sync                      pull replies/bounces/unsubs -> ledger + suppression
     outbound status [<industry>]       reservoir depth, counts, cost, last run
+    outbound report [<industry>]       Smartlead campaign stats (sent/open/reply/positive)
 """
 
 from __future__ import annotations
@@ -240,6 +241,25 @@ def export(
     written = export_brief(db, industry, out_dir=out_dir)
     for name, path in written.items():
         console.print(f"  {name:10} → {path}")
+
+
+# --- report ------------------------------------------------------------------
+
+@app.command()
+def report(
+    industry: Optional[str] = typer.Argument(None, help="Limit to one brief."),
+    days: int = typer.Option(7, "--days", help="Lookback window for local event counts."),
+) -> None:
+    """Pull Smartlead campaign stats and print a performance summary table."""
+    from . import report as report_mod
+    db = _db(require_keys=False)
+    names = [industry] if industry else (brief_mod.list_briefs() or [])
+    if not names:
+        console.print("[yellow]No briefs found.[/yellow]")
+        return
+    briefs = [_load_brief(name) for name in names]
+    data = report_mod.weekly_report(db, briefs, days=days)
+    report_mod.print_report(data)
 
 
 # --- status ------------------------------------------------------------------
