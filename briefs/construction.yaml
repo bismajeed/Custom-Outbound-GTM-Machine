@@ -1,0 +1,62 @@
+industry: construction
+saved_search: "Wave 1 — Mid-market GCs — Precon & Ops Leaders"
+
+company_filters:
+  industries: [Commercial Construction, General Contractor, Building Construction]
+  employees:   {min: 100, max: 2000}
+  revenue_usd: {min: 50000000, max: 500000000}
+  countries:   [United States]
+  technologies_any: [Procore, Bluebeam, Autodesk Build, e-Builder, PlanSwift, Sage Estimating]
+  founded_before: 2018
+  exclude_keywords: [residential, "single family", "home builder", remodeling]
+
+contact_filters:
+  titles_any: [VP Preconstruction, Director Preconstruction, Preconstruction Manager,
+               VP Estimating, Director Estimating, Chief Estimator, Chief Operating Officer]
+  seniority:  [Director, VP, C-Suite]
+  countries:  [United States]
+  email_status: [verified, likely]      # skip catch-all
+  contacts_per_company: 3
+
+signals:
+  job_postings: {keywords_any: [estimator, preconstruction, bid, takeoff]}
+  news:         {lookback_days: 120, themes_any: [groundbreaking, expansion, project, award]}
+
+hooks:
+  - {id: free_implementation, angle: "Free bid-extraction pilot tied to their Procore data"}
+  - {id: pain_point,          angle: "The bid-leveling backlog on precon teams"}
+  - {id: roi,                 angle: "Hours saved per bid cycle"}
+
+personalization:
+  mode: first_line            # first_line (default, template+1 line) | full (generate whole body)
+
+# Copy that wraps the personalized first line. Edit this per industry — it is the
+# value-prop and CTA Brad asked us to lead with. We have no proof metric yet, so
+# the email leads with the concrete mechanism + a free pilot offer instead of a
+# claimed result. NEVER invent a number here: leave proof_point empty until you
+# have a real, defensible figure, then fill it and it auto-appears in the body.
+# No signature — the Smartlead mailbox already appends one.
+messaging:
+  offer: "we pull bid-leveling data straight out of Procore so your estimators stop re-keying line items by hand"
+  proof_point: ""                                    # leave empty until you have a real metric
+  cta: "happy to run it free on one of your recent bids so you can see the output — worth a look?"
+  opt_out: "not relevant? just reply 'stop' and i'll close this out."
+  # Subject A/B: variant A = company-anchored signal, variant B = this value/free-offer.
+  subject_value_fallback: "free bid teardown"
+  # Automated follow-ups (sequence steps 2 and 3). {{first_name}} / {{company_name}}
+  # merge vars only — no signal dependency, so they work in either campaign.
+  follow_ups:
+    - delay_days: 3
+      body: "quick follow-up — the teardown takes one of {{company_name}}'s recent bid sets and shows the bid-leveling fully extracted from Procore, no manual entry. want me to run one?"
+    - delay_days: 4
+      body: "last note from me — if speeding up bid leveling isn't a priority right now, no worries. if it is, i'll send a free teardown on a recent bid. just say the word."
+
+sending:
+  daily_quota: 500
+  days: [Tue, Wed, Thu]
+  window_local: "09:00-11:30"
+  per_mailbox_cap: {m365: 30, gw: 25}
+  tracking: on                # ON for now to gather open-rate baseline; flip to off later for M365 deliverability
+
+reservoir:   {target_depth_days: 7}
+suppression: {on_unsubscribe: true, hard_bounce_threshold: 2, suppress_company_on_meeting_months: 12}
