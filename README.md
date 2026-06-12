@@ -6,6 +6,8 @@ cascade, personalize copy, and load leads into Smartlead — then sync replies a
 suppression back. Bring your own API keys; state lives in local SQLite by
 default, with a Postgres switch for shared team state.
 
+![Outbound Engine explainer](explainer.gif)
+
 ## Principles
 
 - **Bring-your-own-keys.** No secret lives in the repo. Keys load from `.env`
