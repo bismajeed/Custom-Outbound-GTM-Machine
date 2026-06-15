@@ -306,15 +306,31 @@ def apply_suppression(domains_emails: Iterable[str]) -> int:
 
 
 def fetch_campaign_replies(campaign_id: str) -> list[dict]:
-    """Pull recent message history / replies for a campaign (used by sync)."""
-    try:
-        resp = request_with_retry(
-            "GET", _url(f"/campaigns/{campaign_id}/statistics")
-        )
-        data = resp.json()
-        return data.get("data") or data.get("leads") or []
-    except Exception:
-        return []
+    """Pull all leads with engagement data from /statistics, paginated.
+
+    /statistics returns leads that have been emailed with open/reply/bounce
+    fields. Paginated so completed leads aren't missed at higher offsets.
+    """
+    all_leads: list[dict] = []
+    offset = 0
+    limit = 100
+    while True:
+        try:
+            resp = request_with_retry(
+                "GET", _url(f"/campaigns/{campaign_id}/statistics") +
+                f"&offset={offset}&limit={limit}"
+            )
+            data = resp.json()
+            page = data if isinstance(data, list) else (data.get("data") or data.get("leads") or [])
+            if not page:
+                break
+            all_leads.extend(page)
+            if len(page) < limit:
+                break
+            offset += limit
+        except Exception:
+            break
+    return all_leads
 
 
 def fetch_all_leads(campaign_id: str) -> list[dict]:
