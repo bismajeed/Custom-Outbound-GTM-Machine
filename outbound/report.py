@@ -36,8 +36,8 @@ def _pct(n: int, total: int) -> str:
 
 
 def _campaign_stats(campaign_id: str) -> dict:
-    """Aggregate sent/opened/replied/bounced/unsub from lead-level statistics."""
-    leads = smartlead.fetch_campaign_replies(campaign_id)
+    """Aggregate sent/opened/replied/bounced/unsub from all leads (incl. completed)."""
+    leads = smartlead.fetch_all_leads(campaign_id)
     total = len(leads)
 
     opened = sum(

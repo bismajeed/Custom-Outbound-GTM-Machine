@@ -315,3 +315,31 @@ def fetch_campaign_replies(campaign_id: str) -> list[dict]:
         return data.get("data") or data.get("leads") or []
     except Exception:
         return []
+
+
+def fetch_all_leads(campaign_id: str) -> list[dict]:
+    """Fetch ALL leads for a campaign including completed ones, with pagination.
+
+    The /statistics endpoint only returns active leads. This endpoint returns
+    every lead regardless of sequence status, giving accurate sent counts.
+    """
+    all_leads: list[dict] = []
+    offset = 0
+    limit = 100
+    while True:
+        try:
+            resp = request_with_retry(
+                "GET", _url(f"/campaigns/{campaign_id}/leads") +
+                f"&offset={offset}&limit={limit}"
+            )
+            data = resp.json()
+            page = data if isinstance(data, list) else (data.get("data") or data.get("leads") or [])
+            if not page:
+                break
+            all_leads.extend(page)
+            if len(page) < limit:
+                break
+            offset += limit
+        except Exception:
+            break
+    return all_leads
