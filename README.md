@@ -50,6 +50,7 @@ outbound load construction --quota 500   # drain reservoir -> Smartlead (the onl
 outbound run construction          # top up the reservoir (idempotent)
 outbound sync                      # pull replies/bounces/unsubs -> ledger + suppression
 outbound status                    # reservoir depth, counts, cost-to-date
+outbound report                    # Smartlead performance summary -> Slack
 ```
 
 ## Commands
@@ -66,6 +67,7 @@ outbound status                    # reservoir depth, counts, cost-to-date
 | `outbound sync [<industry>]` | Pull replies/bounces/unsubs; update ledger + suppression. |
 | `outbound status [<industry>]` | Reservoir depth, pipeline counts, cost-to-date, last run. |
 | `outbound export <industry> [--dir output]` | Write CSV snapshots (companies, contacts, runs) of current state. |
+| `outbound report [<industry>] [--days N]` | Pull Smartlead campaign stats (sent, open %, reply %, positive replies, bounces) and post a summary to Slack if `SLACK_TOKEN` + `SLACK_CHANNEL_ID` are set. |
 
 ## The pipeline (cascade)
 
@@ -133,8 +135,22 @@ Copy `.env.example` to `.env` and fill in:
 | `SMARTLEAD_API_KEY` | yes | Campaign + lead loading |
 | `DATABASE_URL` | no | State store (SQLite default; Postgres for teams) |
 | `SEARCH_API_KEY` | no | Optional web-search fallback |
+| `SLACK_TOKEN` | no | Bot token for weekly report (`xoxb-…`). Needs `chat:write` scope. |
+| `SLACK_CHANNEL_ID` | no | Channel to post the weekly report to (e.g. `C0B4Y5AT8J1`). |
 
 Keys are never logged, never accepted as CLI arguments, and never committed.
+
+## Weekly report
+
+`outbound report` pulls live campaign stats from Smartlead and prints a summary table. If `SLACK_TOKEN` and `SLACK_CHANNEL_ID` are set in `.env`, it also posts a formatted Block Kit message to that Slack channel automatically.
+
+```bash
+outbound sync && outbound report   # sync first so local event counts are fresh
+outbound report construction       # limit to one brief
+outbound report --days 14          # widen the local event window
+```
+
+To get a Slack bot token: create an app at [api.slack.com/apps](https://api.slack.com/apps), add the `chat:write` scope, install to your workspace, and invite the bot to the target channel (`/invite @bot-name`).
 
 ## Development
 
