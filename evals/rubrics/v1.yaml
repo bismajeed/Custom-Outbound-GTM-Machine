@@ -1,0 +1,79 @@
+# Message-quality rubric — v1 (pre-calibration).
+#
+# The LLM judge scores each message on `scored_criteria` (1-5), blends them with
+# `weights` into an overall score, and auto-zeros anything that trips a
+# `hard_fail`. Versioned so we can A/B against v2 once Brad's human ratings are
+# in (see evals/analyze.py). Edit a copy as v2.yaml rather than mutating v1.
+
+version: v1
+
+# Each scored 1-5 (5 = best). `desc` is handed to the judge as the criterion.
+scored_criteria:
+  - id: specificity
+    desc: "References a real concrete detail (signal, named project), not generic"
+  - id: pain_reference
+    desc: "Names the actual buyer pain (bid leveling, manual re-keying), not a feature"
+  - id: clarity
+    desc: "One read, no jargon, mobile-skimmable"
+  - id: conversational
+    desc: "Reads human; starts with a verb where possible (Saw.../Noticed...)"
+  - id: credibility
+    desc: "Risk-reversal / honest framing; matches 'you don't pay if it fails'"
+
+# How the 1-5 criterion scores blend into overall_score. Must sum to 1.0.
+weights:
+  specificity: 0.30
+  pain_reference: 0.25
+  clarity: 0.20
+  conversational: 0.15
+  credibility: 0.10
+
+# Any match auto-zeros the message and is flagged. Each rule has a `type`:
+#   phrase  — case-insensitive substring (multi-word templates)
+#   word    — case-insensitive, matches the token at a word boundary
+#             (so "leverage" also catches "leveraging")
+#   regex   — case-insensitive regular expression (for categories)
+hard_fails:
+  - id: generic_openers
+    type: phrase
+    desc: "Template cold-open that signals mass, untargeted outreach"
+    items:
+      - "I came across your profile"
+      - "I noticed you work at"
+      - "hope you're well"
+      - "hope this email finds you"
+
+  - id: empty_compliments
+    type: phrase
+    desc: "Hollow flattery with no substance"
+    items:
+      - "great work"
+      - "very interesting"
+      - "love what you're doing"
+
+  - id: buzzwords
+    type: word
+    desc: "Hype / buzzword framing"
+    # NOTE: "groundbreaking" is a literal construction signal (broke ground on a
+    # project). Flagged here per spec, but a likely v2 calibration candidate —
+    # it may auto-zero legitimately specific openers. Watch it in analyze.py.
+    items:
+      - innovative
+      - groundbreaking
+      - leverage
+      - impressive
+      - synergy
+      - cutting-edge
+
+  - id: ai_buzz
+    type: regex
+    desc: "AI / tooling buzzword framing"
+    items:
+      - '\b(ai|a\.i\.|artificial intelligence|machine learning|gpt|llm)\b'
+
+  - id: appearance_age_gender
+    type: regex
+    desc: "References to appearance, age, or gender"
+    items:
+      - '\b(young|old|elderly|handsome|beautiful|pretty|gorgeous|attractive|good[- ]looking)\b'
+      - '\b(your age|years young)\b'
