@@ -98,8 +98,8 @@ def _set_schedule(brief: Brief, campaign_id: str) -> None:
     )
 
 
-def _opt_out_html(brief: Brief) -> str:
-    opt_out = brief.messaging.get(
+def _opt_out_html(m: dict) -> str:
+    opt_out = m.get(
         "opt_out", "not relevant? just reply 'stop' and i'll close this out.")
     return f"<p style=\"font-size:12px;color:#888\">{opt_out}</p>"
 
@@ -111,12 +111,15 @@ def _email_template(brief: Brief, cell: str) -> tuple[str, str]:
     - template mode (no signal): fixed opener + offer + CTA, merge vars only.
     - first_line mode: opens with the per-lead generated {{first_line}}.
     No signature paragraph — the Smartlead mailbox appends its own.
+
+    Copy is the per-segment messaging (``brief.messaging_for(cell)``), so the
+    'signal' and 'free_implementation' campaigns carry distinct offer/CTA/opt-out.
     """
+    m = brief.messaging_for(cell)
     if brief.personalization_mode == "full":
         # Generated subject + body per lead; append the compliant opt-out.
-        return "{{subject}}", f"<p>{{{{body}}}}</p>{_opt_out_html(brief)}"
+        return "{{subject}}", f"<p>{{{{body}}}}</p>{_opt_out_html(m)}"
 
-    m = brief.messaging
     offer = m.get("offer") or f"we work with {brief.industry} teams on {_hook_angle(brief, cell)}"
     proof = m.get("proof_point", "")
     cta = m.get("cta", "worth a quick look?")
@@ -132,7 +135,7 @@ def _email_template(brief: Brief, cell: str) -> tuple[str, str]:
             f"<p>{opener}</p>"
             f"<p>{value_para}</p>"
             f"<p>{cta}</p>"
-            f"{_opt_out_html(brief)}"
+            f"{_opt_out_html(m)}"
         )
         return subject, body
 
@@ -142,14 +145,14 @@ def _email_template(brief: Brief, cell: str) -> tuple[str, str]:
         "<p>{{first_line}}</p>"
         f"<p>{value_para}</p>"
         f"<p>{cta}</p>"
-        f"{_opt_out_html(brief)}"
+        f"{_opt_out_html(m)}"
     )
     return "{{subject}}", body
 
 
-def _follow_up_html(body_text: str, brief: Brief) -> str:
+def _follow_up_html(body_text: str, m: dict) -> str:
     """Wrap a follow-up body string in HTML with the opt-out appended."""
-    return f"<p>Hi {{{{first_name}}}},</p><p>{body_text}</p>{_opt_out_html(brief)}"
+    return f"<p>Hi {{{{first_name}}}},</p><p>{body_text}</p>{_opt_out_html(m)}"
 
 
 def ensure_sequence(brief: Brief, campaign_id: str, cell: str) -> None:
@@ -169,6 +172,7 @@ def ensure_sequence(brief: Brief, campaign_id: str, cell: str) -> None:
     except Exception:
         pass
 
+    m = brief.messaging_for(cell)
     subject, body = _email_template(brief, cell)
     sequences = [{
         "seq_number": 1,
@@ -176,13 +180,13 @@ def ensure_sequence(brief: Brief, campaign_id: str, cell: str) -> None:
         "subject": subject,
         "email_body": body,
     }]
-    # Follow-ups. Empty subject => Smartlead threads it under the same subject.
-    for i, step in enumerate(brief.messaging.get("follow_ups", []), start=2):
+    # Follow-ups (per-segment). Empty subject => Smartlead threads it under step 1.
+    for i, step in enumerate(m.get("follow_ups", []), start=2):
         sequences.append({
             "seq_number": i,
             "seq_delay_details": {"delay_in_days": int(step.get("delay_days", 3))},
             "subject": "",
-            "email_body": _follow_up_html(step.get("body", ""), brief),
+            "email_body": _follow_up_html(step.get("body", ""), m),
         })
 
     request_with_retry(

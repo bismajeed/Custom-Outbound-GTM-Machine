@@ -111,40 +111,44 @@ def stage_validate(db: Database, brief: Brief) -> dict:
 
 def stage_jobs(db: Database, brief: Brief) -> dict:
     companies = db.companies_by_status(brief.industry, CompanyStatus.VALID)
-    kept = dropped = 0
+    found = 0
     for c in companies:
         passed, evidence = signals_jobs.has_job_signal(c, brief)
+        # Non-blocking: every company advances. A hiring signal is recorded when
+        # found, but its absence no longer drops the company — signals route into
+        # campaigns, they don't gate. The richer news signal may supersede this.
         if passed:
             db.update_company(c.domain, status=CompanyStatus.JOB_SIGNAL,
                               signal_summary=evidence)
-            kept += 1
+            found += 1
         else:
-            db.update_company(c.domain, status=CompanyStatus.DROPPED,
-                              drop_reason=f"no_job_signal: {evidence}"[:200])
-            dropped += 1
-    console.print(f"  jobs (cheap gate): {kept} passed, {dropped} dropped")
-    return {"in": len(companies), "out": kept, "dropped": dropped, "cost_usd": 0.0}
+            db.update_company(c.domain, status=CompanyStatus.JOB_SIGNAL)
+    console.print(f"  jobs (non-blocking): {found}/{len(companies)} have a hiring signal")
+    return {"in": len(companies), "out": len(companies), "dropped": 0, "cost_usd": 0.0}
 
 
 def stage_news(db: Database, brief: Brief) -> dict:
+    """Paid news research on EVERY company (max coverage). Non-blocking: a news
+    signal supersedes the job-signal summary when found; its absence never drops
+    the company. Every company ends QUALIFIED — the personalize stage routes it
+    into the 'signal' or 'free_implementation' campaign based on what's on file."""
     companies = db.companies_by_status(brief.industry, CompanyStatus.JOB_SIGNAL)
-    kept = dropped = 0
+    found = 0
     cost = 0.0
     for c in companies:
         result = signals_news.research_news(c, brief)
         cost += result.get("cost_usd", 0.0)
         if result["passed"]:
-            # Store the richer news evidence (supersedes the job-signal line).
+            # Richer news evidence supersedes any job-signal line.
             db.update_company(c.domain, status=CompanyStatus.QUALIFIED,
                               signal_summary=result["summary"])
-            kept += 1
+            found += 1
         else:
-            db.update_company(c.domain, status=CompanyStatus.DROPPED,
-                              drop_reason=f"no_news_signal: {result['summary']}"[:200])
-            dropped += 1
-    console.print(f"  news (cascade gate): {kept} qualified, {dropped} dropped "
-                  f"(${cost:.2f})")
-    return {"in": len(companies), "out": kept, "dropped": dropped, "cost_usd": cost}
+            # Keep any existing job-signal summary; just advance the company.
+            db.update_company(c.domain, status=CompanyStatus.QUALIFIED)
+    console.print(f"  news (non-blocking, all): {found}/{len(companies)} got a news "
+                  f"signal (${cost:.2f})")
+    return {"in": len(companies), "out": len(companies), "dropped": 0, "cost_usd": cost}
 
 
 def stage_enrich(db: Database, brief: Brief) -> dict:
