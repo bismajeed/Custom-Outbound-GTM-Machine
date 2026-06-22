@@ -56,6 +56,19 @@ def pick_hook(contact: Contact, hooks: list[dict[str, Any]]) -> dict[str, Any]:
     return hooks[idx]
 
 
+# Campaign segments. A company with any signal (job or news) routes into the
+# signal-anchored campaign; one with none routes into the free-implementation
+# campaign. Nothing is dropped — segments split the reservoir into separate
+# Smartlead campaigns (via the contact's ``cell``), each with its own messaging.
+SEGMENT_SIGNAL = "signal"
+SEGMENT_NONE = "free_implementation"
+
+
+def segment_for(company: Company) -> str:
+    """Route a company to a campaign segment by whether it has a signal on file."""
+    return SEGMENT_SIGNAL if (company.signal_summary or "").strip() else SEGMENT_NONE
+
+
 def subject_variant(email: str) -> str:
     """Deterministic 50/50 A/B split for subject style, by email.
 
@@ -106,7 +119,7 @@ def _has_signal(company: Company) -> bool:
 
 
 def _first_line_prompt(contact: Contact, company: Company, hook: dict,
-                       brief: Brief, variant: str) -> str:
+                       brief: Brief, m: dict, variant: str) -> str:
     has_signal = _has_signal(company)
     company_short = (company.name.split()[0].lower() if company.name else "their")
     # Variant A wants a signal-anchored subject, but only if a real signal exists;
@@ -119,7 +132,7 @@ def _first_line_prompt(contact: Contact, company: Company, hook: dict,
             "about THEM — never a bare project name that reads as cryptic."
         )
     else:
-        fallback = brief.messaging.get("subject_value_fallback", "")
+        fallback = m.get("subject_value_fallback", "")
         subject_instruction = (
             "SUBJECT STYLE: value — a concrete value or free-offer in plain words "
             f"(e.g. \"{fallback}\"). lowercase, 2-5 words." if fallback else
@@ -131,11 +144,13 @@ def _first_line_prompt(contact: Contact, company: Company, hook: dict,
             "the specific event/detail — do not invent anything beyond the evidence."
         )
     else:
+        value_angle = (m.get("value_angle") or m.get("offer") or
+                       "the outcome we help with").strip()
         first_line_instruction = (
             "FIRST LINE: there is NO specific signal, so do NOT fabricate news. Instead "
-            f"write a relevant cold opener for a {contact.title or 'precon leader'} at "
-            f"{company.name} tied to the value angle ({brief.messaging.get('value_angle', 'saving time on bids')}) "
-            "or the pain of re-keying Procore data by hand. Never leave it empty."
+            f"write a relevant cold opener for a {contact.title or 'leader'} at "
+            f"{company.name} tied to our offer/value angle ({value_angle[:160]}) or a "
+            "pain point their role faces. Never leave it empty."
         )
     return f"""\
 Write the SUBJECT and the personalized FIRST LINE of a cold email to \
@@ -150,14 +165,14 @@ Campaign angle (hook): {hook.get('angle', '')}
 Never use a banned subject (e.g. "quick question"). See the subject rules above.
 
 {first_line_instruction}
-Normal sentence case (capitalize the first word and proper nouns like Procore/company names — \
+Normal sentence case (capitalize the first word and proper nouns like company/product names — \
 NOT all-lowercase), under 25 words.
 
 Return STRICT JSON only: {{"subject": "...", "first_line": "..."}}"""
 
 
-def _full_prompt(contact: Contact, company: Company, hook: dict, brief: Brief) -> str:
-    m = brief.messaging
+def _full_prompt(contact: Contact, company: Company, hook: dict, brief: Brief,
+                 m: dict) -> str:
     signal = company.signal_summary
     signal_block = (f"Recent signal about them (use it if relevant, never invent): {signal}"
                     if signal else
@@ -172,14 +187,14 @@ This email's angle (vary your structure to fit it): {hook.get('angle', '')}.
 Soft offer to close on: {m.get('cta', 'happy to show you')}.
 {signal_block}
 
-Make it feel hand-written and specific to a {contact.title or 'precon leader'} — no boilerplate, \
+Make it feel hand-written and specific to a {contact.title or 'leader'} — no boilerplate, \
 no two emails alike. Lead with a hook that earns the open, not a generic intro.
 
 Return STRICT JSON only: {{"subject": "...", "body": "..."}}.
-- subject: lowercase, value- or curiosity-driven so they WANT to open (a short question is great, \
-e.g. "want 4 hours back per bid cycle?"). Never "quick question", never a bare descriptor, no emojis, no exclamation marks.
+- subject: lowercase, value- or curiosity-driven so they WANT to open (a short question is great). \
+Never "quick question", never a bare descriptor, no emojis, no exclamation marks.
 - body: PROFESSIONAL sentence case — capitalize the first word of every sentence, the recipient's \
-name in the greeting (e.g. "Hi {contact.first_name or 'there'},"), and proper nouns (Procore, company \
+name in the greeting (e.g. "Hi {contact.first_name or 'there'},"), and proper nouns (company/product \
 names). Do NOT write the body in all-lowercase. Under 90 words, conversational, one clear idea, ONE \
 soft ask, reference their world (role/company), no signature."""
 
@@ -215,8 +230,9 @@ def _clean_subject(text: str) -> str:
 
 def personalize_detailed(contact: Contact, company: Company, brief: Brief) -> tuple[Contact, float]:
     """Personalize a contact and return (contact, cost_usd)."""
-    hook = pick_hook(contact, brief.hooks)
-    contact.cell = hook.get("id")
+    hook = pick_hook(contact, brief.hooks)          # angle variety within a segment
+    contact.cell = segment_for(company)             # campaign split: signal vs free_implementation
+    m = brief.messaging_for(contact.cell)           # per-segment copy (offer/cta/fallback)
 
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
     system = _messaging_prompt()
@@ -224,7 +240,7 @@ def personalize_detailed(contact: Contact, company: Company, brief: Brief) -> tu
 
     if brief.personalization_mode == "full":
         try:
-            resp = _call(client, system, _full_prompt(contact, company, hook, brief), 600)
+            resp = _call(client, system, _full_prompt(contact, company, hook, brief, m), 600)
             cost = _cost(resp.usage)
             raw = "\n".join(b.text for b in resp.content
                             if getattr(b, "type", None) == "text").strip()
@@ -237,13 +253,13 @@ def personalize_detailed(contact: Contact, company: Company, brief: Brief) -> tu
             contact.subject = contact.subject or ""
             contact.body = contact.body or ""
         if not contact.subject:
-            contact.subject = (brief.messaging.get("subject_value_fallback")
+            contact.subject = (m.get("subject_value_fallback")
                                or "worth a look?").lower()
     else:
         variant = subject_variant(contact.email)
         try:
             resp = _call(client, system,
-                         _first_line_prompt(contact, company, hook, brief, variant), 160)
+                         _first_line_prompt(contact, company, hook, brief, m, variant), 160)
             cost = _cost(resp.usage)
             raw = "\n".join(b.text for b in resp.content
                             if getattr(b, "type", None) == "text").strip()
@@ -254,16 +270,16 @@ def personalize_detailed(contact: Contact, company: Company, brief: Brief) -> tu
         except Exception:
             contact.first_line = contact.first_line or ""
             contact.subject = contact.subject or ""
-        # Never ship an empty subject — fall back to the brief's value subject.
+        # Never ship an empty subject — fall back to the segment's value subject.
         if not contact.subject:
-            contact.subject = (brief.messaging.get("subject_value_fallback")
+            contact.subject = (m.get("subject_value_fallback")
                                or f"{brief.industry} — quick note").lower()
         # Never ship an empty first line either — use a value opener.
         if not contact.first_line:
-            offer = brief.messaging.get("offer", "")
+            offer = m.get("offer", "")
             contact.first_line = _capitalize_first(
                 offer + "." if offer else
-                "Wanted to reach out about speeding up your bid process.")
+                "Wanted to reach out about how your team handles this workflow.")
 
     contact.status = ContactStatus.PERSONALIZED
     return contact, cost

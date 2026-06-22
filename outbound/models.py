@@ -116,6 +116,18 @@ class Brief:
     def news_lookback_days(self) -> int:
         return int(self.signals.get("news", {}).get("lookback_days", 120))
 
+    def messaging_for(self, segment: Optional[str] = None) -> dict[str, Any]:
+        """Messaging for a campaign segment: the base ``messaging`` block with any
+        ``messaging.segments.<segment>`` override merged on top. Keys present in the
+        segment (offer, cta, follow_ups, …) win; everything else inherits the base.
+        Lets each segment campaign carry distinct copy."""
+        base = dict(self.messaging or {})
+        segments = base.pop("segments", {}) or {}
+        override = segments.get(segment)
+        if segment and isinstance(override, dict):
+            base.update(override)
+        return base
+
 
 @dataclass
 class RunRecord:

@@ -34,3 +34,6 @@ venv/
 output/
 .research_progress.json
 .progress_*.json
+
+# Eval data — generated from the live DB, regenerate with `python -m evals.extract`
+evals/data/*.csv

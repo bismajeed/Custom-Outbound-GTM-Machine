@@ -1,0 +1,117 @@
+industry: healthcare-admin
+saved_search: "Wave 1 — Healthcare Admin — RCM & HIM Leaders (Prior Auth / HCC / Denials)"
+
+company_filters:
+  # Provider-specific industry tags only. Dropped the loose "Health Systems",
+  # "Managed Care", "Healthcare Revenue Cycle" tags — Apollo keyword-matches them
+  # against staffing/consulting/media firms and pollutes the pool.
+  industries: [Hospital & Health Care, Hospital, Health System, Medical Practice,
+               Physician Group]
+  employees:   {min: 100, max: 2000}
+  revenue_usd: {min: 50000000, max: 500000000}
+  countries:   [United States]
+  # Apollo technology UIDs (slugs), NOT display names. Apollo's company search uses
+  # currently_using_any_of_technology_uids and silently ignores display names / unknown
+  # values — so "Epic", "Oracle Health", "Meditech" matched nothing before. UIDs verified
+  # empirically via scripts/health_counts.py; combined any-of ~5,020 companies in-pool.
+  # EHR systems (~2,065 on their own):
+  #   epic, epic_systems, mychart  -> Epic (incl. MyChart patient portal)
+  #   cerner                       -> Cerner / "Oracle Health"
+  #   meditech_ehr, meditech_expanse -> Meditech
+  #   athenahealth, allscripts, eclinicalworks, nextgen_healthcare -> other EHRs
+  # Oracle business software (ERP/infra, ~2,950 — broadens the pool beyond pure EHR):
+  #   oracle_cloud, oracle_database, oracle_netsuite, oracle_xml_db,
+  #   oracle_fusion_middleware, oracle_human_resources
+  # To tighten to EHR-only later, drop the oracle_* slugs.
+  technologies_any: [epic, epic_systems, mychart, cerner, meditech_ehr, meditech_expanse,
+                     athenahealth, allscripts, eclinicalworks, nextgen_healthcare,
+                     oracle_cloud, oracle_database, oracle_netsuite, oracle_xml_db,
+                     oracle_fusion_middleware, oracle_human_resources]
+  founded_before: 2020
+  # Healthcare scope excludes + non-provider business-type excludes (the staffing/
+  # media/consulting firms that bled into the construction-style keyword match).
+  exclude_keywords: ["telehealth only", dental, veterinary, "behavioral health only",
+                     "home health only", staffing, recruiting, recruitment, talent,
+                     consulting, media, magazine, publishing, association, marketing]
+
+contact_filters:
+  titles_any: [VP Revenue Cycle, Vice President Revenue Cycle, Director Revenue Cycle,
+               Director Health Information Management, Director HIM,
+               Director Utilization Management, Director Coding, Director CDI,
+               Chief Revenue Officer, VP Operations]
+  seniority:  [Director, VP, C-Suite]
+  countries:  [United States]
+  email_status: [verified, likely]      # skip catch-all (high bounce risk)
+  contacts_per_company: 2               # smaller, higher-quality batch per playbook
+  # Post-enrichment guard: keep on-ICP admin titles, drop clinicians who slip through.
+  icp_title_keywords: [revenue cycle, "health information", "utilization management",
+                       coding, cdi, "revenue officer", operations]
+
+signals:
+  job_postings: {keywords_any: [prior authorization, prior auth, "utilization management",
+                                "medical coding", "HCC", "revenue cycle", "denials"]}
+  news:         {lookback_days: 120,
+                 themes_any: [Epic go-live, expansion, "ambulatory surgery", acquisition,
+                              "revenue cycle", hiring]}
+
+hooks:
+  - {id: prior_auth,     angle: "Prior-auth submission workflow — volume up, staffing flat"}
+  - {id: hcc_coding,     angle: "HCC retrospective coding backlog and per-chart cost"}
+  - {id: denial_appeals, angle: "Clinical denial appeals sitting on RN desks"}
+
+personalization:
+  mode: first_line            # first_line (default, template+1 line) | full (generate whole body)
+
+# Copy that wraps the personalized first line. Healthcare-specific rules per the
+# playbook: lead with compliance posture (HIPAA / BAA) before workflow specifics;
+# NEVER say "shipped in 90 days"; NEVER claim clinical/medical-necessity authority
+# (we assemble evidence, clinical staff decides). No proof point exists yet — lead
+# with the mechanism + shadow-mode de-risking, never a fabricated metric. No
+# signature; the Smartlead mailbox appends one.
+messaging:
+  offer: "we build prior-auth submission workflows that match clinical documentation to payer medical-necessity criteria, build the PA narrative, and submit to the payer portal — your clinical staff stays in the loop on every determination. HIPAA compliant, BAA ready"
+  proof_point: ""                                    # leave empty until a real metric exists
+  cta: "worth a brief conversation to see if the workflow shape fits?"
+  opt_out: "not the right person? just reply 'stop' and i'll close this out."
+  # Subject A/B: variant A = company-anchored signal, variant B = this value subject.
+  subject_value_fallback: "prior auth volume question"
+  # Automated follow-ups (sequence steps 2-5). {{first_name}} / {{company_name}} merge
+  # vars only — no signal dependency. Adapted from the playbook's touches 2-5: workflow
+  # detail + shadow-mode, the HCC coding angle, a soft re-offer, then the break-up.
+  # delay_days are calendar days; with sending.days limited to Tue/Wed/Thu the opener
+  # + 4 follow-ups land on send days across an ~18-day window (offsets: 0,4,8,13,18).
+  follow_ups:
+    - delay_days: 4
+      body: "quick follow-up — the workflow ingests the order, clinical notes, labs and imaging, matches them against the payer's medical-necessity criteria (InterQual, MCG, or proprietary), and submits via portal, fax, or EDI 278. anything below the confidence threshold goes to a human exception queue. the system never makes the coverage determination. open to a one-page breakdown?"
+    - delay_days: 4
+      body: "we run in shadow mode against {{company_name}}'s real PA submissions before any production cutover — pilot success is extraction accuracy at parity with your current BPO on the same data sample. if it doesn't hit that bar, you don't pay the implementation fee. worth a quick look?"
+    - delay_days: 5
+      body: "different angle, {{first_name}} — the same workflow shape handles HCC retrospective coding: ingest the progress notes, identify conditions at the right specificity, validate MEAT criteria, flag gaps for a coder query. if the coding backlog is closer to the top of your list than prior auth, happy to walk through it."
+    - delay_days: 5
+      body: "closing the loop on this one. if the timing is wrong or it's the wrong workflow for {{company_name}}, no problem. and if the decision lives with someone in HIM or utilization management, i'd welcome a quick redirect. either way i'll stop here."
+
+  # Per-segment overrides. Companies are never dropped — they route into two
+  # campaigns by signal presence:
+  #   signal              -> a job/news signal was found; uses the base messaging
+  #                          above, first line anchored on the specific signal.
+  #   free_implementation -> no signal found; uses the copy below (no fabricated
+  #                          news), leading with the de-risked free/shadow-mode
+  #                          pilot. Inherits the base follow_ups + opt_out; only
+  #                          the opener offer/cta/subject differ. No proof point
+  #                          (none exists yet); no clinical-authority claim.
+  segments:
+    free_implementation:
+      offer: "we build prior-auth submission workflows that match clinical documentation to payer medical-necessity criteria and submit to the payer portal — and we run it in shadow mode against your real submissions first, so there's no implementation fee until it matches your current process on the same data sample. your clinical staff stays in the loop on every determination. HIPAA compliant, BAA ready"
+      cta: "open to seeing how the shadow-mode pilot would work for your team?"
+      subject_value_fallback: "prior auth — shadow-mode pilot"
+
+sending:
+  daily_quota: 40             # week-1 volume per playbook ramp (40 -> 200 over 4 weeks, done manually for now)
+  days: [Tue, Wed, Thu]
+  window_local: "09:00-11:30"
+  timezone: "America/New_York"
+  per_mailbox_cap: {m365: 30, gw: 25}
+  tracking: off               # playbook: no open/click tracking in healthcare
+
+reservoir:   {target_depth_days: 14}
+suppression: {on_unsubscribe: true, hard_bounce_threshold: 2, suppress_company_on_meeting_months: 12}
