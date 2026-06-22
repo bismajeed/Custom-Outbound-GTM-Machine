@@ -243,6 +243,59 @@ def export(
         console.print(f"  {name:10} → {path}")
 
 
+# --- funnel ------------------------------------------------------------------
+
+@app.command()
+def funnel(
+    industry: str = typer.Argument(...),
+    out_dir: str = typer.Option("output", "--dir", help="Output directory."),
+) -> None:
+    """Show the Apollo company-count funnel for a brief's company_filters.
+
+    One filter layer at a time, in order (location -> revenue -> employees ->
+    industry keywords -> technologies), with the EXACT values used, the count
+    after each, and how many it removed. AND between layers; OR within the
+    industry and technology layers. Writes funnel.csv so the targeting is fully
+    auditable before any sourcing or spend. Read-only — no enrichment.
+    """
+    import csv as _csv
+    from pathlib import Path as _Path
+    from .sources import apollo
+
+    config_mod.get_config()  # fail fast if Apollo key is missing
+    brief = _load_brief(industry)
+    rows = apollo.funnel_counts(brief)
+
+    table = Table(title=f"Apollo funnel — {industry}  (AND between layers, OR within)")
+    table.add_column("step", justify="right")
+    table.add_column("filter")
+    table.add_column("logic")
+    table.add_column("companies", justify="right")
+    table.add_column("removed", justify="right")
+    table.add_column("exact values")
+    for r in rows:
+        vals = r["values"]
+        vals_str = ", ".join(map(str, vals)) if isinstance(vals, list) else str(vals)
+        table.add_row(
+            str(r["step"]), r["filter"], r["logic"], f"{r['companies']:,}",
+            f"-{r['removed']:,}" if r["removed"] is not None else "—", vals_str,
+        )
+    console.print(table)
+
+    out = _Path(out_dir) / industry
+    out.mkdir(parents=True, exist_ok=True)
+    fp = out / "funnel.csv"
+    with open(fp, "w", newline="", encoding="utf-8") as f:
+        w = _csv.writer(f)
+        w.writerow(["step", "filter", "logic", "companies", "removed", "exact_values"])
+        for r in rows:
+            vals = r["values"]
+            vals_str = " | ".join(map(str, vals)) if isinstance(vals, list) else str(vals)
+            w.writerow([r["step"], r["filter"], r["logic"], r["companies"],
+                        r["removed"] if r["removed"] is not None else "", vals_str])
+    console.print(f"[dim]CSV: {fp}[/dim]")
+
+
 # --- report ------------------------------------------------------------------
 
 @app.command()
