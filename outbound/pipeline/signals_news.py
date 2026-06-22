@@ -30,11 +30,16 @@ from tenacity import (
 
 from ..models import Brief, Company
 
-MODEL = "claude-sonnet-4-6"
+# Haiku keeps the (smarter) agentic web_search flow but at ~4.5x lower token cost
+# than Sonnet. Combined with the search cap (3) and the run-stage short-circuit
+# (only no-job-signal companies reach this paid stage), it cuts news spend ~80%
+# with no precision loss — Haiku stays conservative and still rejects undated
+# signals (verified A/B, see scripts/news_ab_test.py).
+MODEL = "claude-haiku-4-5-20251001"
 MAX_TOKENS = 1500
 
-PRICE_INPUT_PER_MTOK = 3.00
-PRICE_OUTPUT_PER_MTOK = 15.00
+PRICE_INPUT_PER_MTOK = 0.80
+PRICE_OUTPUT_PER_MTOK = 4.00
 PRICE_WEB_SEARCH_PER_1K = 10.00
 
 MEANINGFUL_SPECIFICITY_MIN = 3
@@ -60,7 +65,7 @@ You are a research analyst for a B2B outbound campaign in the {brief.industry} i
 Your job is to find ONE genuinely useful, recent signal about a specific company that a \
 sales rep can use to write a personalized first line in a cold email.
 
-BUDGET: Maximum 6 web_search calls per company. If no qualifying signal is found after 6 \
+BUDGET: Maximum 3 web_search calls per company. If no qualifying signal is found after 3 \
 searches, return an empty signals array with detailed search_notes.
 
 WHO RECEIVES THE EMAIL
@@ -72,8 +77,8 @@ HARD DATE FILTER: Only include a signal if its event date is on or after {cutoff
 (within the last {lookback} days). If a signal is older than that, DISCARD it.
 
 SEARCH STRATEGY
-Run at least 3 different searches before concluding no signals exist. Try the company name \
-with location, project/award/expansion terms, leadership-hire terms, and trade-press sites.
+Run at least 2 different searches before concluding no signals exist (max 3). Try the company \
+name with location, project/award/expansion terms, leadership-hire terms, and trade-press sites.
 
 WHAT TO LOOK FOR (rough priority): recent project wins / awards / expansions; named \
 technology adoption; leadership hires or promotions; trade-press coverage; contract awards; \
@@ -149,7 +154,7 @@ def _call_claude(client: anthropic.Anthropic, system_prompt: str, user_prompt: s
             model=MODEL,
             max_tokens=MAX_TOKENS,
             system=system_prompt,
-            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 6}],
+            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 3}],
             messages=[{"role": "user", "content": user_prompt}],
         )
     except (anthropic.APITimeoutError, anthropic.APIConnectionError,

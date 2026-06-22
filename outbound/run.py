@@ -128,26 +128,31 @@ def stage_jobs(db: Database, brief: Brief) -> dict:
 
 
 def stage_news(db: Database, brief: Brief) -> dict:
-    """Paid news research on EVERY company (max coverage). Non-blocking: a news
-    signal supersedes the job-signal summary when found; its absence never drops
-    the company. Every company ends QUALIFIED — the personalize stage routes it
-    into the 'signal' or 'free_implementation' campaign based on what's on file."""
+    """Paid news research, non-blocking. Short-circuit: a company that already has
+    a (free) job signal skips the paid call — it's already in the 'signal' segment,
+    so news can't change its routing. Only no-job-signal companies pay for news, to
+    try to lift them out of 'free_implementation'. Nothing is dropped; every company
+    ends QUALIFIED and the personalize stage routes it by what's on file."""
     companies = db.companies_by_status(brief.industry, CompanyStatus.JOB_SIGNAL)
-    found = 0
+    researched = found = skipped = 0
     cost = 0.0
     for c in companies:
+        if (c.signal_summary or "").strip():
+            # Already has a job signal -> already 'signal'; don't spend on news.
+            db.update_company(c.domain, status=CompanyStatus.QUALIFIED)
+            skipped += 1
+            continue
         result = signals_news.research_news(c, brief)
+        researched += 1
         cost += result.get("cost_usd", 0.0)
         if result["passed"]:
-            # Richer news evidence supersedes any job-signal line.
             db.update_company(c.domain, status=CompanyStatus.QUALIFIED,
                               signal_summary=result["summary"])
             found += 1
         else:
-            # Keep any existing job-signal summary; just advance the company.
             db.update_company(c.domain, status=CompanyStatus.QUALIFIED)
-    console.print(f"  news (non-blocking, all): {found}/{len(companies)} got a news "
-                  f"signal (${cost:.2f})")
+    console.print(f"  news (Haiku, no-job-signal only): {found}/{researched} found a "
+                  f"news signal, {skipped} skipped (already had job signal) (${cost:.2f})")
     return {"in": len(companies), "out": len(companies), "dropped": 0, "cost_usd": cost}
 
 
