@@ -111,15 +111,23 @@ def search_companies(brief: Brief, limit: int) -> list[Company]:
             "organization_locations": cf.get("countries", []),
         }
         # Keyword tags describe the target industry only. Technologies are a
-        # FILTER on the companies (currently_using_any_of_technologies), never
-        # search keywords — otherwise vendors named after a tool (e.g. Bluebeam)
-        # match and pollute the results.
+        # FILTER on the companies, never search keywords — otherwise vendors
+        # named after a tool (e.g. Bluebeam) match and pollute the results.
+        #
+        # Apollo's company-search technology filter is `currently_using_any_of_
+        # technology_uids` and expects technology UIDs (slugs like `epic`,
+        # `oracle_netsuite`), NOT display names — a display name or an unknown
+        # param is silently ignored, which previously made this filter a no-op.
+        # A bare brand often matches nothing (`oracle` -> 0); each product is its
+        # own UID. There is no public typeahead endpoint; valid UIDs were found
+        # empirically (see scripts/health_counts.py). So `technologies_any` in a
+        # brief must list UIDs, not display names.
         industries = list(cf.get("industries", []))
         if industries:
             payload["q_organization_keyword_tags"] = industries
         techs = list(cf.get("technologies_any", []))
         if techs:
-            payload["currently_using_any_of_technologies"] = techs
+            payload["currently_using_any_of_technology_uids"] = techs
 
         resp = request_with_retry(
             "POST", f"{APOLLO_BASE}/mixed_companies/search",

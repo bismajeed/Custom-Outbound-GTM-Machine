@@ -2,15 +2,37 @@ industry: healthcare-admin
 saved_search: "Wave 1 — Healthcare Admin — RCM & HIM Leaders (Prior Auth / HCC / Denials)"
 
 company_filters:
-  industries: [Hospital & Health Care, Health Systems, Medical Practice, Managed Care,
-               Healthcare Revenue Cycle]
+  # Provider-specific industry tags only. Dropped the loose "Health Systems",
+  # "Managed Care", "Healthcare Revenue Cycle" tags — Apollo keyword-matches them
+  # against staffing/consulting/media firms and pollutes the pool.
+  industries: [Hospital & Health Care, Hospital, Health System, Medical Practice,
+               Physician Group]
   employees:   {min: 100, max: 2000}
   revenue_usd: {min: 50000000, max: 500000000}
   countries:   [United States]
-  technologies_any: [Epic, Cerner, Oracle Health, athenahealth, Meditech, Allscripts]
+  # Apollo technology UIDs (slugs), NOT display names. Apollo's company search uses
+  # currently_using_any_of_technology_uids and silently ignores display names / unknown
+  # values — so "Epic", "Oracle Health", "Meditech" matched nothing before. UIDs verified
+  # empirically via scripts/health_counts.py; combined any-of ~5,020 companies in-pool.
+  # EHR systems (~2,065 on their own):
+  #   epic, epic_systems, mychart  -> Epic (incl. MyChart patient portal)
+  #   cerner                       -> Cerner / "Oracle Health"
+  #   meditech_ehr, meditech_expanse -> Meditech
+  #   athenahealth, allscripts, eclinicalworks, nextgen_healthcare -> other EHRs
+  # Oracle business software (ERP/infra, ~2,950 — broadens the pool beyond pure EHR):
+  #   oracle_cloud, oracle_database, oracle_netsuite, oracle_xml_db,
+  #   oracle_fusion_middleware, oracle_human_resources
+  # To tighten to EHR-only later, drop the oracle_* slugs.
+  technologies_any: [epic, epic_systems, mychart, cerner, meditech_ehr, meditech_expanse,
+                     athenahealth, allscripts, eclinicalworks, nextgen_healthcare,
+                     oracle_cloud, oracle_database, oracle_netsuite, oracle_xml_db,
+                     oracle_fusion_middleware, oracle_human_resources]
   founded_before: 2020
+  # Healthcare scope excludes + non-provider business-type excludes (the staffing/
+  # media/consulting firms that bled into the construction-style keyword match).
   exclude_keywords: ["telehealth only", dental, veterinary, "behavioral health only",
-                     "home health only"]
+                     "home health only", staffing, recruiting, recruitment, talent,
+                     consulting, media, magazine, publishing, association, marketing]
 
 contact_filters:
   titles_any: [VP Revenue Cycle, Vice President Revenue Cycle, Director Revenue Cycle,
