@@ -90,6 +90,21 @@ messaging:
     - delay_days: 5
       body: "closing the loop on this one. if the timing is wrong or it's the wrong workflow for {{company_name}}, no problem. and if the decision lives with someone in HIM or utilization management, i'd welcome a quick redirect. either way i'll stop here."
 
+  # Per-segment overrides. Companies are never dropped — they route into two
+  # campaigns by signal presence:
+  #   signal              -> a job/news signal was found; uses the base messaging
+  #                          above, first line anchored on the specific signal.
+  #   free_implementation -> no signal found; uses the copy below (no fabricated
+  #                          news), leading with the de-risked free/shadow-mode
+  #                          pilot. Inherits the base follow_ups + opt_out; only
+  #                          the opener offer/cta/subject differ. No proof point
+  #                          (none exists yet); no clinical-authority claim.
+  segments:
+    free_implementation:
+      offer: "we build prior-auth submission workflows that match clinical documentation to payer medical-necessity criteria and submit to the payer portal — and we run it in shadow mode against your real submissions first, so there's no implementation fee until it matches your current process on the same data sample. your clinical staff stays in the loop on every determination. HIPAA compliant, BAA ready"
+      cta: "open to seeing how the shadow-mode pilot would work for your team?"
+      subject_value_fallback: "prior auth — shadow-mode pilot"
+
 sending:
   daily_quota: 40             # week-1 volume per playbook ramp (40 -> 200 over 4 weeks, done manually for now)
   days: [Tue, Wed, Thu]
