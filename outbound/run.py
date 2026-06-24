@@ -151,8 +151,9 @@ def stage_news(db: Database, brief: Brief) -> dict:
             found += 1
         else:
             db.update_company(c.domain, status=CompanyStatus.QUALIFIED)
-    console.print(f"  news (Haiku, no-job-signal only): {found}/{researched} found a "
-                  f"news signal, {skipped} skipped (already had job signal) (${cost:.2f})")
+    console.print(f"  news (DuckDuckGo+Haiku, no-job-signal only): {found}/{researched} "
+                  f"found a news signal, {skipped} skipped (already had job signal) "
+                  f"(${cost:.2f})")
     return {"in": len(companies), "out": len(companies), "dropped": 0, "cost_usd": cost}
 
 

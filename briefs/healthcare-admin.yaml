@@ -2,11 +2,16 @@ industry: healthcare-admin
 saved_search: "Wave 1 — Healthcare Admin — RCM & HIM Leaders (Prior Auth / HCC / Denials)"
 
 company_filters:
-  # Provider-specific industry tags only. Dropped the loose "Health Systems",
-  # "Managed Care", "Healthcare Revenue Cycle" tags — Apollo keyword-matches them
-  # against staffing/consulting/media firms and pollutes the pool.
-  industries: [Hospital & Health Care, Hospital, Health System, Medical Practice,
-               Physician Group]
+  # Industry keyword tags (sent as q_organization_keyword_tags). OR within this
+  # layer — a company matching ANY one term passes. Expanded to all related
+  # provider terms. NOTE: this is Apollo's LOOSE free-text keyword match, not the
+  # structured industry taxonomy — so revenue + technology do the real narrowing.
+  # Run `outbound funnel healthcare-admin` for the exact per-layer counts.
+  industries: [Hospital & Health Care, Hospital, Hospitals, Health System, Health Systems,
+               Medical Practice, Medical Practices, Physician Group, Physician Groups,
+               Medical Group, Ambulatory Surgery, Ambulatory Care, Outpatient, Primary Care,
+               Urgent Care, Multispecialty, Integrated Delivery Network, Academic Medical Center,
+               Managed Care, Healthcare Revenue Cycle]
   employees:   {min: 100, max: 2000}
   revenue_usd: {min: 50000000, max: 500000000}
   countries:   [United States]
@@ -42,7 +47,7 @@ contact_filters:
   seniority:  [Director, VP, C-Suite]
   countries:  [United States]
   email_status: [verified, likely]      # skip catch-all (high bounce risk)
-  contacts_per_company: 2               # smaller, higher-quality batch per playbook
+  contacts_per_company: 3               # 3 to hit ~1,500 leads from ~650 companies (was 2)
   # Post-enrichment guard: keep on-ICP admin titles, drop clinicians who slip through.
   icp_title_keywords: [revenue cycle, "health information", "utilization management",
                        coding, cdi, "revenue officer", operations]

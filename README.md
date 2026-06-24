@@ -18,8 +18,11 @@ default, with a Postgres switch for shared team state.
 - **Single-touch guarantee.** A company/contact is contacted at most once,
   enforced by the ledger *before* any paid enrichment is spent. Holds team-wide
   when all operators share one database.
-- **Cascade cost control.** Cheap filters run before expensive ones. The paid
-  Claude news research only runs on records that already passed the free gates.
+- **Signals route, they don't gate.** No company is dropped for lacking a
+  signal — the cascade routes it into the right campaign instead. Cheap filters
+  still run first: the news research (free DuckDuckGo results summarized by Claude
+  Haiku) is skipped for any company that already has a free job signal, and
+  `validate` is the only stage that drops records (genuinely unreachable domains).
 - **Deliverability first.** Tracking defaults OFF (brief-controlled via
   `sending.tracking`), per-mailbox caps and daily quotas are respected, every
   email carries an opt-out, and suppression is applied on every load.
@@ -75,13 +78,13 @@ outbound report                    # Smartlead performance summary -> Slack
 pre-stage status and writes the post-stage status, so a crash resumes cleanly.
 
 1. **source** — Apollo company search (honours `company_filters`); dedup vs DB → `SOURCED`
-2. **validate** — HTTP/metadata domain check (free) → `VALID` / `DROPPED`
-3. **jobs** — job-posting signal, scrape-only **cheap gate** → `JOB_SIGNAL` / `DROPPED`
-4. **news** — Claude web-search research (**paid**, 120-day, cascade-gated) → `QUALIFIED` / `DROPPED`
+2. **validate** — DNS-reachability domain check (free); **the only drop gate** → `VALID` / `DROPPED`
+3. **jobs** — job-posting signal, scrape-only (free), **non-blocking** → `JOB_SIGNAL` (records a signal when found; never drops)
+4. **news** — DuckDuckGo results (free) summarized by Claude (Haiku) into one dated signal (**paid only for Haiku tokens**, 120-day), **non-blocking**; short-circuited for companies that already have a job signal → `QUALIFIED`
 5. **enrich** — Apollo contact enrichment (verified/likely only); dedup → `ENRICHED`
-6. **personalize** — Claude first-line (or full email), hook round-robin → `QUEUED`
+6. **personalize** — Claude first-line (or full email); routes each company into a campaign **segment** (`signal` vs `free_implementation`) via its `cell` → `QUEUED`
 
-The reservoir is simply `contacts WHERE status='QUEUED'`. `load` drains it.
+Every sourced + valid company reaches `QUEUED` — the signals decide *which* campaign it lands in, not *whether* it's kept. The reservoir is `contacts WHERE status='QUEUED'`; `load` drains it into **one Smartlead campaign per segment**.
 
 ## The Industry Brief
 
@@ -97,6 +100,17 @@ Subjects are generated per lead and A/B split: variant **A** is signal-anchored
 (names their project/hire), variant **B** is a value/outcome line. The chosen
 variant is pushed to Smartlead as a `subject_variant` custom field so the two can
 be compared. Set `sending.tracking: on|off` to control open/click tracking.
+
+**Per-segment copy.** Companies route into one campaign per segment (`signal` for
+those with a job/news signal, `free_implementation` for those without). Override
+the copy for a segment under `messaging.segments.<segment>` — any keys there
+(`offer`, `cta`, `follow_ups`, …) win over the base block, so the two campaigns
+can speak differently while inheriting everything you don't override.
+
+**Technology filter.** `company_filters.technologies_any` takes Apollo
+**technology UIDs** (slugs like `epic`, `oracle_netsuite`) — *not* display names,
+which Apollo silently ignores. Verify UIDs against live counts with
+`scripts/health_counts.py`.
 
 ## State store
 
@@ -114,11 +128,11 @@ The DB is the source of truth, but you can render it to CSV any time — `run`,
 them on demand. Files land under `output/<industry>/`:
 
 - `companies.csv` — every company with its `status` (SOURCED → VALID →
-  JOB_SIGNAL → QUALIFIED, or DROPPED at a gate) plus `drop_reason` and the
-  `signal_summary` used for personalization.
+  JOB_SIGNAL → QUALIFIED, or DROPPED only at `validate`) plus `drop_reason` and
+  the `signal_summary` used for personalization.
 - `contacts.csv` — every contact with `status` (ENRICHED → PERSONALIZED →
-  QUEUED → LOADED, or SUPPRESSED), the `cell` (hook), and the generated
-  `first_line`.
+  QUEUED → LOADED, or SUPPRESSED), the `cell` (campaign segment: `signal` /
+  `free_implementation`), and the generated `first_line`.
 - `runs.csv` — per-stage log: in/out/dropped counts and `cost_usd`.
 
 The `status` column is how you see exactly where each record sits in the

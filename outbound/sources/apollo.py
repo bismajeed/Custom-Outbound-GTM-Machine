@@ -110,6 +110,14 @@ def search_companies(brief: Brief, limit: int) -> list[Company]:
             ),
             "organization_locations": cf.get("countries", []),
         }
+        # Revenue band (an AND layer). Apollo expects revenue_range{min,max}. This
+        # was previously never sent, so the brief's revenue_usd was silently ignored
+        # — letting in companies far outside the band.
+        rev = cf.get("revenue_usd") or {}
+        rr = {k: int(v) for k, v in (("min", rev.get("min")), ("max", rev.get("max")))
+              if v is not None}
+        if rr:
+            payload["revenue_range"] = rr
         # Keyword tags describe the target industry only. Technologies are a
         # FILTER on the companies, never search keywords — otherwise vendors
         # named after a tool (e.g. Bluebeam) match and pollute the results.
@@ -160,6 +168,65 @@ def search_companies(brief: Brief, limit: int) -> list[Company]:
         page += 1
 
     return out[:limit]
+
+
+def funnel_counts(brief: Brief) -> list[dict]:
+    """Apollo company-count funnel for a brief's company_filters, applied one
+    cumulative layer at a time (AND between layers; OR within the industry and
+    technology layers). Read-only — uses per_page=1, no enrichment.
+
+    Returns a list of dicts: {step, filter, logic, values, companies, removed}.
+    Use it to audit exactly which filters run and how many companies each removes
+    before any sourcing/spend. Order: location -> revenue -> employees ->
+    industry keywords -> technologies.
+    """
+    cf = brief.company_filters
+
+    def _total(p: dict) -> int:
+        resp = request_with_retry(
+            "POST", f"{APOLLO_BASE}/mixed_companies/search",
+            headers=_headers(), json={"page": 1, "per_page": 1, **p},
+        )
+        return int(resp.json().get("pagination", {}).get("total_entries", 0) or 0)
+
+    payload: dict[str, Any] = {}
+    rows: list[dict] = []
+    prev: Optional[int] = None
+
+    def _layer(name: str, logic: str, values: Any) -> None:
+        nonlocal prev
+        n = _total(payload)
+        rows.append({
+            "step": len(rows) + 1, "filter": name, "logic": logic,
+            "values": values, "companies": n,
+            "removed": (prev - n) if prev is not None else None,
+        })
+        prev = n
+
+    payload["organization_locations"] = cf.get("countries", [])
+    _layer("location", "OR", cf.get("countries", []))
+
+    rev = cf.get("revenue_usd") or {}
+    rr = {k: int(v) for k, v in (("min", rev.get("min")), ("max", rev.get("max")))
+          if v is not None}
+    if rr:
+        payload["revenue_range"] = rr
+        _layer("revenue_usd", "range", rr)
+
+    payload["organization_num_employees_ranges"] = _employee_ranges(cf.get("employees", {}))
+    _layer("employees", "OR", cf.get("employees", {}))
+
+    industries = list(cf.get("industries", []))
+    if industries:
+        payload["q_organization_keyword_tags"] = industries
+        _layer("industry_keywords", "OR", industries)
+
+    techs = list(cf.get("technologies_any", []))
+    if techs:
+        payload["currently_using_any_of_technology_uids"] = techs
+        _layer("technologies", "OR", techs)
+
+    return rows
 
 
 # Map brief seniority labels onto Apollo's person_seniorities enum values.
