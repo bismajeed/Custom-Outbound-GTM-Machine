@@ -20,9 +20,9 @@ default, with a Postgres switch for shared team state.
   when all operators share one database.
 - **Signals route, they don't gate.** No company is dropped for lacking a
   signal — the cascade routes it into the right campaign instead. Cheap filters
-  still run first: the paid Claude (Haiku) news research is skipped for any
-  company that already has a free job signal, and `validate` is the only stage
-  that drops records (genuinely unreachable domains).
+  still run first: the news research (free DuckDuckGo results summarized by Claude
+  Haiku) is skipped for any company that already has a free job signal, and
+  `validate` is the only stage that drops records (genuinely unreachable domains).
 - **Deliverability first.** Tracking defaults OFF (brief-controlled via
   `sending.tracking`), per-mailbox caps and daily quotas are respected, every
   email carries an opt-out, and suppression is applied on every load.
@@ -80,7 +80,7 @@ pre-stage status and writes the post-stage status, so a crash resumes cleanly.
 1. **source** — Apollo company search (honours `company_filters`); dedup vs DB → `SOURCED`
 2. **validate** — DNS-reachability domain check (free); **the only drop gate** → `VALID` / `DROPPED`
 3. **jobs** — job-posting signal, scrape-only (free), **non-blocking** → `JOB_SIGNAL` (records a signal when found; never drops)
-4. **news** — Claude (Haiku) web-search research (**paid**, 120-day, capped at 3 searches), **non-blocking**; short-circuited for companies that already have a job signal → `QUALIFIED`
+4. **news** — DuckDuckGo results (free) summarized by Claude (Haiku) into one dated signal (**paid only for Haiku tokens**, 120-day), **non-blocking**; short-circuited for companies that already have a job signal → `QUALIFIED`
 5. **enrich** — Apollo contact enrichment (verified/likely only); dedup → `ENRICHED`
 6. **personalize** — Claude first-line (or full email); routes each company into a campaign **segment** (`signal` vs `free_implementation`) via its `cell` → `QUEUED`
 
