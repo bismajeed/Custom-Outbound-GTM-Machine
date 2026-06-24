@@ -105,6 +105,55 @@ def test_signal_stages_never_drop_and_route(db, monkeypatch):
     assert summaries["none.com"].strip() == ""                    # no signal -> free_impl
 
 
+def test_match_signal_phrases_extracts_snippet():
+    """A growth phrase in the description is found and a snippet captured."""
+    job = {"title": "Senior Estimator",
+           "description": "We are growing fast and breaking ground on a new "
+                          "200,000 sq ft distribution center in Austin this fall."}
+    phrase, snippet = signals_jobs._match_signal_phrases(
+        job, ["new facility", "breaking ground", "expanding into"])
+    assert phrase == "breaking ground"
+    assert "breaking ground" in snippet.lower()
+    assert "austin" in snippet.lower()
+
+
+def test_match_signal_phrases_none_when_no_match():
+    job = {"title": "Office Manager", "description": "General admin duties."}
+    assert signals_jobs._match_signal_phrases(job, ["breaking ground"]) == ("", "")
+
+
+def test_has_job_signal_prefers_growth_phrase(monkeypatch):
+    """Evidence leads with the description growth signal, reused in messaging."""
+    b = load_brief("construction")
+    jobs = [{"title": "Senior Estimator", "description": "joining us as we expand "
+             "into the Texas market with a new office in Dallas.",
+             "posted_date_raw": "", "source_url": "x", "source": "greenhouse"}]
+    monkeypatch.setattr(signals_jobs, "_discover_jobs", lambda c: (jobs, ["greenhouse"]))
+    passed, ev = signals_jobs.has_job_signal(Company(domain="gc.com", name="GC"), b)
+    assert passed
+    assert "growth signal" in ev.lower()
+    assert "texas" in ev.lower() or "dallas" in ev.lower()
+
+
+def test_has_job_signal_falls_back_to_role_keyword(monkeypatch):
+    """No growth phrase, but a role-keyword title still yields a signal."""
+    b = load_brief("construction")
+    jobs = [{"title": "Preconstruction Manager", "description": "standard role.",
+             "posted_date_raw": "", "source_url": "x", "source": "lever"}]
+    monkeypatch.setattr(signals_jobs, "_discover_jobs", lambda c: (jobs, ["lever"]))
+    passed, ev = signals_jobs.has_job_signal(Company(domain="gc.com", name="GC"), b)
+    assert passed
+    assert "role-matched" in ev.lower()
+
+
+def test_has_job_signal_none_when_no_jobs(monkeypatch):
+    b = load_brief("construction")
+    monkeypatch.setattr(signals_jobs, "_discover_jobs", lambda c: ([], []))
+    passed, ev = signals_jobs.has_job_signal(Company(domain="gc.com", name="GC"), b)
+    assert not passed
+    assert "no job postings" in ev.lower()
+
+
 def test_messaging_for_merges_segment_override():
     b = load_brief("healthcare-admin")
     base = b.messaging_for(SEGMENT_SIGNAL)        # no override -> base messaging

@@ -2,13 +2,27 @@ industry: construction
 saved_search: "Wave 1 — Mid-market GCs — Precon & Ops Leaders"
 
 company_filters:
-  industries: [Commercial Construction, General Contractor, Building Construction]
-  employees:   {min: 100, max: 2000}
+  # STRUCTURED Apollo industry (organization_industry_tag_ids) — PRECISE.
+  # The loose keyword approach (q_organization_keyword_tags) returned ~4,840 but was
+  # polluted with banks, staffing, and software firms whose tags merely *mention*
+  # "construction" (e.g. construction-loan banks). This structured industry id is the
+  # actual Apollo "Construction" classification — ~1,269 clean construction companies,
+  # no banks. Tag id verified by enriching known GCs (organizations/enrich ->
+  # industry_tag_id). To find ids for a new vertical, enrich a known company in it.
+  industry_tag_ids: ["5567cd4773696439dd350000"]   # Apollo industry = "construction"
+  employees:   {min: 100, max: 2000}        # Apollo buckets -> effectively 51-2000
   revenue_usd: {min: 50000000, max: 500000000}
   countries:   [United States]
+  # Technology is a SIGNAL, not a gate: the pool is sourced WITHOUT requiring a tool
+  # (Apollo's technographic coverage is sparse — only ~7% of GCs have one recorded —
+  # so gating on it dropped ~92% of good-fit companies for a data-coverage reason).
+  # Each sourced company is tagged with the tools it uses; that routes it into the
+  # signal campaign and lets the email name the tool. Companies with none are kept.
+  technology_as_signal: true
   technologies_any: [Procore, Bluebeam, Autodesk Build, e-Builder, PlanSwift, Sage Estimating]
   founded_before: 2018
-  exclude_keywords: [residential, "single family", "home builder", remodeling]
+  # Excluded company keywords (q_not_organization_keyword_tags).
+  exclude_keywords: [residential, "single family", "home builders", remodeling]
 
 contact_filters:
   titles_any: [VP Preconstruction, Director Preconstruction, Preconstruction Manager,
@@ -19,7 +33,21 @@ contact_filters:
   contacts_per_company: 3
 
 signals:
-  job_postings: {keywords_any: [estimator, preconstruction, bid, takeoff]}
+  # job_postings drives the free, scrape-only job signal (signals_jobs.py):
+  #   keywords_any       -> matched against the posting TITLE = "are they hiring
+  #                         the roles that imply our buyer?" (role relevance).
+  #   signal_phrases_any -> matched against the posting DESCRIPTION = growth/intent.
+  #                         When one hits, the surrounding snippet is reused verbatim
+  #                         in the email first line ("saw you're staffing up for …").
+  #                         These are construction-specific on purpose — every niche
+  #                         defines its own. The engine mechanism is generic.
+  job_postings:
+    keywords_any: [estimator, preconstruction, bid, takeoff]
+    signal_phrases_any: ["breaking ground", "groundbreaking", "new project", "new development",
+                         "expanding into", "expansion", "new office", "new location",
+                         "new region", "new market", "new division", "growing backlog",
+                         "record backlog", "recently awarded", "newly awarded", "new contract",
+                         "data center", "mixed-use", "ground-up", "new facility", "scaling our"]
   news:         {lookback_days: 120, themes_any: [groundbreaking, expansion, project, award]}
 
 hooks:
@@ -43,12 +71,19 @@ messaging:
   opt_out: "not relevant? just reply 'stop' and i'll close this out."
   # Subject A/B: variant A = company-anchored signal, variant B = this value/free-offer.
   subject_value_fallback: "free bid teardown"
-  # Automated follow-ups (sequence steps 2 and 3). {{first_name}} / {{company_name}}
+  # Automated follow-ups (sequence steps 2–5). {{first_name}} / {{company_name}}
   # merge vars only — no signal dependency, so they work in either campaign.
+  # delay_days are calendar days between consecutive steps; with sending.days
+  # limited to Tue/Wed/Thu, the opener + 4 follow-ups land on send days across an
+  # ~18-day window (cumulative offsets: 0, 4, 8, 13, 18).
   follow_ups:
-    - delay_days: 3
+    - delay_days: 4
       body: "quick follow-up — the teardown takes one of {{company_name}}'s recent bid sets and shows the bid-leveling fully extracted from Procore, no manual entry. want me to run one?"
     - delay_days: 4
+      body: "circling back — most precon teams we talk to are still re-keying bid line items by hand on every job. the teardown shows what that looks like automated on one of {{company_name}}'s real bids. open to a quick look?"
+    - delay_days: 5
+      body: "still happy to put this in front of you, {{first_name}} — i can run the teardown on a recent bid and send back the extracted bid-leveling so you can judge it on your own data. no call needed to see the output."
+    - delay_days: 5
       body: "last note from me — if speeding up bid leveling isn't a priority right now, no worries. if it is, i'll send a free teardown on a recent bid. just say the word."
 
 sending:

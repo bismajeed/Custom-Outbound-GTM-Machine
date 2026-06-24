@@ -57,6 +57,23 @@ def _parse_int(value: Any) -> Optional[int]:
         return None
 
 
+def _apply_industry(cf: dict, payload: dict) -> None:
+    """Set the industry filter, preferring Apollo's STRUCTURED industry
+    (``industry_tag_ids`` -> organization_industry_tag_ids) over the loose keyword
+    match (``industries`` -> q_organization_keyword_tags). The keyword match returns
+    any company whose tags merely mention the term (banks, staffing, software firms
+    that touch construction), so a brief should use structured tag ids when it wants
+    a precise industry. Tag ids are found by enriching a known in-industry company
+    (organizations/enrich returns industry_tag_id)."""
+    ids = list(cf.get("industry_tag_ids", []))
+    if ids:
+        payload["organization_industry_tag_ids"] = ids
+        return
+    industries = list(cf.get("industries", []))
+    if industries:
+        payload["q_organization_keyword_tags"] = industries
+
+
 def _org_to_company(org: dict, brief: Brief) -> Optional[Company]:
     domain = (org.get("primary_domain") or org.get("website_url") or "").strip()
     domain = domain.replace("https://", "").replace("http://", "").replace("www.", "")
@@ -99,7 +116,6 @@ def search_companies(brief: Brief, limit: int) -> list[Company]:
     per_page = 100
     page = 1
     out: list[Company] = []
-    exclude = [k.lower() for k in cf.get("exclude_keywords", [])]
 
     while len(out) < limit:
         payload: dict[str, Any] = {
@@ -130,32 +146,41 @@ def search_companies(brief: Brief, limit: int) -> list[Company]:
         # own UID. There is no public typeahead endpoint; valid UIDs were found
         # empirically (see scripts/health_counts.py). So `technologies_any` in a
         # brief must list UIDs, not display names.
-        industries = list(cf.get("industries", []))
-        if industries:
-            payload["q_organization_keyword_tags"] = industries
+        _apply_industry(cf, payload)
         techs = list(cf.get("technologies_any", []))
-        if techs:
+        # technology_as_signal=True means "don't gate on technology" — source the
+        # full pool and tag each company with the tools it uses afterwards (see
+        # tag_technologies). Otherwise technology is a hard AND filter.
+        if techs and not cf.get("technology_as_signal"):
             payload["currently_using_any_of_technology_uids"] = techs
+        # founded_before + exclude_keywords are AND layers Apollo can apply
+        # server-side — the same way the Apollo UI does. They were previously
+        # filtered client-side AFTER fetch, so total_entries (and the funnel) never
+        # reflected them and the UI/API counts diverged. Sending them to Apollo
+        # keeps the count, the sourced set, and the UI in sync.
+        fb = cf.get("founded_before")
+        if fb:
+            # founded_before=2018 means "founded in 2017 or earlier".
+            payload["organization_founded_year_range"] = {"max": int(fb) - 1}
+        exclude = list(cf.get("exclude_keywords", []))
+        if exclude:
+            payload["q_not_organization_keyword_tags"] = exclude
 
         resp = request_with_retry(
             "POST", f"{APOLLO_BASE}/mixed_companies/search",
             headers=_headers(), json=payload,
         )
         data = resp.json()
-        orgs = data.get("organizations") or data.get("accounts") or []
+        # Apollo splits results across BOTH arrays and total_entries counts both,
+        # so they must be merged. Taking one (`organizations or accounts`) silently
+        # dropped the other — under-collecting up to ~half the page.
+        orgs = (data.get("organizations") or []) + (data.get("accounts") or [])
         if not orgs:
             break
 
         for org in orgs:
             company = _org_to_company(org, brief)
             if company is None:
-                continue
-            blob = f"{company.name} {company.description}".lower()
-            if exclude and any(kw in blob for kw in exclude):
-                continue
-            # founded_before filter (optional)
-            fb = cf.get("founded_before")
-            if fb and company.founded_year and company.founded_year >= int(fb):
                 continue
             out.append(company)
             if len(out) >= limit:
@@ -216,17 +241,88 @@ def funnel_counts(brief: Brief) -> list[dict]:
     payload["organization_num_employees_ranges"] = _employee_ranges(cf.get("employees", {}))
     _layer("employees", "OR", cf.get("employees", {}))
 
-    industries = list(cf.get("industries", []))
-    if industries:
-        payload["q_organization_keyword_tags"] = industries
-        _layer("industry_keywords", "OR", industries)
+    ids = list(cf.get("industry_tag_ids", []))
+    if ids:
+        payload["organization_industry_tag_ids"] = ids
+        _layer("industry (structured)", "OR", ids)
+    else:
+        industries = list(cf.get("industries", []))
+        if industries:
+            payload["q_organization_keyword_tags"] = industries
+            _layer("industry_keywords", "OR", industries)
 
     techs = list(cf.get("technologies_any", []))
-    if techs:
+    # When technology is a signal (not a gate) it isn't a funnel layer — the pool
+    # is sourced without it and each company is tagged afterwards.
+    if techs and not cf.get("technology_as_signal"):
         payload["currently_using_any_of_technology_uids"] = techs
         _layer("technologies", "OR", techs)
 
+    fb = cf.get("founded_before")
+    if fb:
+        payload["organization_founded_year_range"] = {"max": int(fb) - 1}
+        _layer("founded_before", "range", {"max": int(fb) - 1})
+
+    exclude = list(cf.get("exclude_keywords", []))
+    if exclude:
+        payload["q_not_organization_keyword_tags"] = exclude
+        _layer("exclude_keywords", "NOT", exclude)
+
     return rows
+
+
+def tag_technologies(brief: Brief) -> dict[str, list[str]]:
+    """Return ``{domain: [technologies it uses]}`` for the brief's pool.
+
+    Technology-as-signal: the pool is sourced WITHOUT the technology gate, then each
+    company is tagged with the tools it actually uses by querying each technology in
+    ``technologies_any`` separately and collecting matches. Read-only; only the small
+    per-technology result sets are paged (each is a few hundred companies at most)."""
+    cf = brief.company_filters
+    techs = list(cf.get("technologies_any", []))
+    if not techs:
+        return {}
+
+    base: dict[str, Any] = {
+        "organization_locations": cf.get("countries", []),
+        "organization_num_employees_ranges": _employee_ranges(cf.get("employees", {})),
+    }
+    rev = cf.get("revenue_usd") or {}
+    rr = {k: int(v) for k, v in (("min", rev.get("min")), ("max", rev.get("max")))
+          if v is not None}
+    if rr:
+        base["revenue_range"] = rr
+    _apply_industry(cf, base)
+    fb = cf.get("founded_before")
+    if fb:
+        base["organization_founded_year_range"] = {"max": int(fb) - 1}
+    exclude = list(cf.get("exclude_keywords", []))
+    if exclude:
+        base["q_not_organization_keyword_tags"] = exclude
+
+    out: dict[str, set[str]] = {}
+    for t in techs:
+        page = 1
+        while True:
+            payload = {"page": page, "per_page": 100, **base,
+                       "currently_using_any_of_technology_uids": [t]}
+            resp = request_with_retry(
+                "POST", f"{APOLLO_BASE}/mixed_companies/search",
+                headers=_headers(), json=payload,
+            )
+            data = resp.json()
+            orgs = (data.get("organizations") or []) + (data.get("accounts") or [])
+            if not orgs:
+                break
+            for org in orgs:
+                c = _org_to_company(org, brief)
+                if c:
+                    out.setdefault(c.domain, set()).add(t)
+            total_pages = int(data.get("pagination", {}).get("total_pages", page) or page)
+            if page >= total_pages:
+                break
+            page += 1
+    return {d: sorted(s) for d, s in out.items()}
 
 
 # Map brief seniority labels onto Apollo's person_seniorities enum values.

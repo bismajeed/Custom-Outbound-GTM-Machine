@@ -13,6 +13,7 @@ re-run resumes cleanly without double-processing or double-spending.
 
 from __future__ import annotations
 
+import json
 import math
 import uuid
 from datetime import datetime, timezone
@@ -78,6 +79,13 @@ def compute_source_limit(db: Database, brief: Brief,
 
 # --- stages ------------------------------------------------------------------
 
+def _tech_signal_summary(techs: list[str]) -> str:
+    """Signal-summary line for a company tagged with technologies it uses. Uses the
+    same 'type: text' shape as the news signal so personalization treats it the same
+    way (and it routes the company into the signal segment)."""
+    return "tech_adoption: uses " + ", ".join(techs)
+
+
 def stage_source(db: Database, brief: Brief, source_limit: int) -> dict:
     if source_limit <= 0:
         console.print("[dim]Reservoir already at target depth — nothing to source.[/dim]")
@@ -85,12 +93,30 @@ def stage_source(db: Database, brief: Brief, source_limit: int) -> dict:
     companies = apollo.search_companies(brief, source_limit)
     inserted = 0
     skipped = 0
+    new_domains: list[str] = []
     for company in companies:
         if db.insert_company(company):
             inserted += 1
+            new_domains.append(company.domain)
         else:
             skipped += 1  # dedup / suppression
     console.print(f"  source: {inserted} new companies ({skipped} dedup/suppressed)")
+
+    # Technology as a SIGNAL (not a gate): when the brief opts in, the pool was
+    # sourced WITHOUT the technology filter; here we tag each newly-sourced company
+    # with the tools it actually uses and record that as its signal, so it routes
+    # into the signal campaign and personalization can name the tool. Companies
+    # with no recorded tool are kept — they route to free_implementation.
+    if brief.company_filters.get("technology_as_signal") and new_domains:
+        tech_map = apollo.tag_technologies(brief)
+        tagged = 0
+        for dom in new_domains:
+            techs = tech_map.get(dom)
+            if techs:
+                db.update_company(dom, technologies=json.dumps(techs),
+                                  signal_summary=_tech_signal_summary(techs))
+                tagged += 1
+        console.print(f"  tech-signal: {tagged}/{inserted} tagged with a technology")
     return {"in": len(companies), "out": inserted, "dropped": skipped, "cost_usd": 0.0}
 
 

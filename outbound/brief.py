@@ -19,7 +19,9 @@ BRIEFS_DIR = "briefs"
 
 # Required top-level sections and the fields each must contain.
 _REQUIRED_SECTIONS = {
-    "company_filters": ["industries", "employees", "countries"],
+    # industry is required but may be expressed as loose keywords (`industries`) OR
+    # Apollo structured industry ids (`industry_tag_ids`) — checked below.
+    "company_filters": ["employees", "countries"],
     "contact_filters": ["titles_any", "countries", "contacts_per_company"],
     "signals": ["news"],
     "hooks": None,            # list, validated separately
@@ -107,6 +109,13 @@ def validate_brief_dict(data: dict[str, Any], industry: str) -> None:
     if not isinstance(emp, dict) or "min" not in emp or "max" not in emp:
         raise BriefError(
             f"Brief '{industry}' company_filters.employees must have min and max."
+        )
+
+    cf = data["company_filters"]
+    if not cf.get("industries") and not cf.get("industry_tag_ids"):
+        raise BriefError(
+            f"Brief '{industry}' company_filters needs 'industries' (keywords) or "
+            f"'industry_tag_ids' (Apollo structured industry ids)."
         )
 
 
@@ -202,7 +211,16 @@ def new_brief_interactive(industry: str, private: bool = False) -> Path:
     per_company = _prompt_int("Contacts per company", 3)
 
     news_lookback = _prompt_int("News lookback days", 120)
-    job_keywords = _prompt_list("Job-posting keywords (any-of)", [])
+    # Signals are industry-specific — ask explicitly for each new niche. The engine
+    # mechanism is generic; only these definitions change per brief.
+    print("\nDefine the SIGNALS to look for (these differ for every industry):")
+    job_keywords = _prompt_list(
+        "  Job-posting role keywords matched on the TITLE (e.g. estimator, prior authorization)", [])
+    job_signal_phrases = _prompt_list(
+        "  Job-posting GROWTH/intent phrases matched in the DESCRIPTION "
+        "(e.g. 'breaking ground', 'new facility', 'expanding into')", [])
+    news_themes = _prompt_list(
+        "  News signal themes (e.g. expansion, acquisition, award, go-live)", [])
 
     daily_quota = _prompt_int("Daily send quota", 500)
     days = _prompt_list("Sending days", ["Tue", "Wed", "Thu"])
@@ -240,8 +258,9 @@ def new_brief_interactive(industry: str, private: bool = False) -> Path:
             "contacts_per_company": per_company,
         },
         "signals": {
-            "job_postings": {"keywords_any": job_keywords},
-            "news": {"lookback_days": news_lookback, "themes_any": []},
+            "job_postings": {"keywords_any": job_keywords,
+                             "signal_phrases_any": job_signal_phrases},
+            "news": {"lookback_days": news_lookback, "themes_any": news_themes},
         },
         "hooks": hooks,
         "personalization": {"mode": mode},
