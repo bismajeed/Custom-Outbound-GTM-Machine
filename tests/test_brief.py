@@ -10,7 +10,7 @@ def test_construction_brief_loads():
     assert b.industry == "construction"
     assert b.daily_quota == 500
     assert b.target_depth_days == 7
-    assert b.contacts_per_company == 3
+    assert b.contacts_per_company == 5
     assert b.personalization_mode == "first_line"
     assert len(b.hooks) == 3
 
