@@ -196,3 +196,50 @@ by hand every bid. we pull that data straight out of Procore automatically.
 P.S. want me to run it on one of your recent bids?
 
 ===============================================================================
+LINK ANCHOR TEXT — CTA click options (for tracked links in touches 2-5)
+===============================================================================
+Rule: lowercase, 2-5 words, show-don't-tell or curiosity. NEVER "click here",
+"learn more", or "book a demo". One link per email; keep the opener (touch 1)
+link-free for deliverability. Put a DIFFERENT anchor on each touch.
+
+Show-don't-tell (strongest — fits the P.S. ask)
+  - see it on a real bid
+  - watch it pull a bid apart
+  - see the 60-second teardown
+  - see the before/after
+  - what it looks like automated
+  - see the output, not a pitch
+
+Curiosity / open-loop
+  - see what i mean
+  - here's the part nobody automates
+  - the 2-minute version
+  - see where the hours go
+
+Low-friction / casual
+  - take a look
+  - worth 60 seconds
+  - peek at it here
+  - judge it yourself
+
+Contrarian / pattern-interrupt
+  - skip my pitch, see the output
+  - don't take my word for it
+  - prove me wrong
+
+Personalized (merge-tag — highest intrigue)
+  - see it on a {{company_name}} bid
+  - what this looks like for {{company_name}}
+
+TOP PICKS: "see it on a real bid", "see the 60-second teardown", "skip my pitch,
+see the output" — all reinforce "I'll show you, not sell you."
+
+CURRENTLY LIVE in the campaigns (touches 2-5):
+  signal:  see it on a real bid / see the 60-second teardown /
+           skip my pitch, see the output / see the before/after
+  free:    see what i mean / see the 60-second teardown /
+           skip my pitch, see the output / see the before/after
+Link target (UTM): https://lastrev.com/industries/construction
+  ?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound
+
+===============================================================================

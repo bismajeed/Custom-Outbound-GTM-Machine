@@ -86,20 +86,17 @@ messaging:
   # ~18-day window (cumulative offsets: 0, 4, 8, 13, 18).
   follow_ups:
     - delay_days: 4
-      body: "quick follow-up — the teardown takes one of {{company_name}}'s recent bid sets and shows the bid-leveling fully extracted from Procore, no manual entry. want me to run one?"
+      body: "the teardown takes one of {{company_name}}'s recent bid sets and shows the bid-leveling pulled straight out of Procore, no manual entry. <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>see it on a real bid</a>."
     - delay_days: 4
-      body: "circling back — most precon teams we talk to are still re-keying bid line items by hand on every job. the teardown shows what that looks like automated on one of {{company_name}}'s real bids. open to a quick look?"
+      body: "most precon teams are still re-keying bid line items by hand on every job. here's that automated on a real bid: <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>see the 60-second teardown</a>."
     - delay_days: 5
-      body: "still happy to put this in front of you, {{first_name}} — i can run the teardown on a recent bid and send back the extracted bid-leveling so you can judge it on your own data. no call needed to see the output."
+      body: "different angle, {{first_name}}: don't take my word for it. <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>skip my pitch, see the output</a> on a sample bid and judge it on your own data."
     - delay_days: 5
-      body: "last note from me — if speeding up bid leveling isn't a priority right now, no worries. if it is, i'll send a free teardown on a recent bid. just say the word."
+      body: "last note from me. if speeding up bid leveling isn't a priority right now, no worries. if it is, <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>see the before/after</a> and decide for yourself."
 
-  # Per-segment overrides. The base copy above names Procore (accurate for the signal
-  # segment, whose leads we confirmed use a specific tool). The free_implementation
-  # segment has NO tool signal, so its copy must be TOOL-AGNOSTIC — never assert they
-  # use Procore. Overrides the opener offer + the touch-1 follow-up that named Procore;
-  # inherits everything else (opt_out, etc.). The signal first line still names the
-  # actual tool from the company's signal_summary.
+  # Per-segment overrides. Base copy names Procore (signal segment only). The
+  # free_implementation segment is TOOL-AGNOSTIC. Each touch carries the UTM link
+  # with a different anchor; the opener (touch 1) stays link-free for deliverability.
   segments:
     free_implementation:
       offer: "we pull bid-leveling data straight out of your estimating system, wherever your bid data lives, so your estimators stop re-keying line items by hand"
@@ -107,13 +104,13 @@ messaging:
       subject_value_fallback: "bidding's hidden busywork"
       follow_ups:
         - delay_days: 4
-          body: "quick follow-up — the teardown takes one of {{company_name}}'s recent bid sets and shows the bid-leveling fully extracted from your estimating files, no manual entry. want me to run one?"
+          body: "the teardown takes one of {{company_name}}'s recent bid sets and shows the bid-leveling pulled straight out of your estimating system, no manual entry. <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>see what i mean</a>."
         - delay_days: 4
-          body: "circling back — most precon teams we talk to are still re-keying bid line items by hand on every job. the teardown shows what that looks like automated on one of {{company_name}}'s real bids. open to a quick look?"
+          body: "most precon teams are still re-keying bid line items by hand on every job. here's that automated on a real bid: <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>see the 60-second teardown</a>."
         - delay_days: 5
-          body: "still happy to put this in front of you, {{first_name}} — i can run the teardown on a recent bid and send back the extracted bid-leveling so you can judge it on your own data. no call needed to see the output."
+          body: "different angle, {{first_name}}: don't take my word for it. <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>skip my pitch, see the output</a> on a sample bid."
         - delay_days: 5
-          body: "last note from me — if speeding up bid leveling isn't a priority right now, no worries. if it is, i'll send a free teardown on a recent bid. just say the word."
+          body: "last note from me. if speeding up bid leveling isn't a priority, no worries. if it is, <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>see the before/after</a> and judge it yourself."
 
 sending:
   daily_quota: 500
