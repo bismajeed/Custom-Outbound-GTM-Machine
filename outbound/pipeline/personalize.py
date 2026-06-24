@@ -184,6 +184,21 @@ names). Do NOT write the body in all-lowercase. Under 90 words, conversational, 
 soft ask, reference their world (role/company), no signature."""
 
 
+# Smart punctuation -> plain ASCII. Em/en dashes and curly quotes render as
+# mojibake in Excel and read as an "AI tell" in cold email; normalize them away.
+_PUNCT = {
+    "—": " ", "–": "-", "‘": "'", "’": "'",
+    "“": '"', "”": '"', "…": "...", " ": " ",
+}
+
+
+def _normalize_punct(text: str) -> str:
+    for bad, good in _PUNCT.items():
+        text = text.replace(bad, good)
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)   # no space before punctuation
+    return re.sub(r"\s{2,}", " ", text).strip()
+
+
 def _capitalize_first(text: str) -> str:
     """Uppercase the first alphabetic character, leaving the rest untouched."""
     for i, ch in enumerate(text):
@@ -196,7 +211,7 @@ def _clean_line(text: str) -> str:
     text = text.strip().strip('"').strip()
     # Drop any model preamble like "First line:".
     text = re.sub(r"^(first line|opener)\s*[:\-]\s*", "", text, flags=re.I)
-    return _capitalize_first(text.strip())
+    return _capitalize_first(_normalize_punct(text.strip()))
 
 
 # Subjects the model must never produce — last-resort guard at the code layer.
@@ -207,7 +222,7 @@ _BANNED_SUBJECT_RE = re.compile(
 def _clean_subject(text: str) -> str:
     text = text.strip().strip('"').strip()
     text = re.sub(r"^(subject)\s*[:\-]\s*", "", text, flags=re.I)
-    text = text.rstrip("!").strip()
+    text = _normalize_punct(text.rstrip("!").strip())
     if _BANNED_SUBJECT_RE.match(text):
         return ""  # caller falls back to the value subject
     return text.lower()
