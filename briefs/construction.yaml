@@ -59,7 +59,7 @@ signals:
   news:         {lookback_days: 120, themes_any: [groundbreaking, expansion, project, award]}
 
 hooks:
-  - {id: free_implementation, angle: "Free bid-extraction pilot tied to their Procore data"}
+  - {id: free_implementation, angle: "Free bid-extraction pilot tied to their estimating data"}
   - {id: pain_point,          angle: "The bid-leveling backlog on precon teams"}
   - {id: roi,                 angle: "Hours saved per bid cycle"}
 

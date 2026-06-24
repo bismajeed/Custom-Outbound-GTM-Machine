@@ -150,7 +150,10 @@ def _first_line_prompt(contact: Contact, company: Company, hook: dict,
             "FIRST LINE: there is NO specific signal, so do NOT fabricate news. Instead "
             f"write a relevant cold opener for a {contact.title or 'leader'} at "
             f"{company.name} tied to our offer/value angle ({value_angle[:160]}) or a "
-            "pain point their role faces. Never leave it empty."
+            "pain point their role faces. Never leave it empty. "
+            "Do NOT name any specific software product or vendor (e.g. Procore, Bluebeam) — "
+            "we have no signal that they use one; refer generically to 'their estimating "
+            "system' or 'wherever their bid data lives'."
         )
     return f"""\
 Write the SUBJECT and the personalized FIRST LINE of a cold email to \
