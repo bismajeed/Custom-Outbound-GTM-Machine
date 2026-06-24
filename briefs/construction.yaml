@@ -76,6 +76,8 @@ messaging:
   offer: "we pull bid-leveling data straight out of Procore so your estimators stop re-keying line items by hand"
   proof_point: ""                                    # leave empty until you have a real metric
   cta: "want me to run it on one of your recent bids?"
+  cta_link: "https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound"                 # opener (touch 1) tracked link
+  cta_link_text: "what it looks like automated"   # signal opener anchor
   opt_out: "not relevant? just reply 'stop' and i'll close this out."
   # Subject A/B: variant A = company-anchored signal, variant B = this value/free-offer.
   subject_value_fallback: "bidding's hidden busywork"
@@ -101,6 +103,7 @@ messaging:
     free_implementation:
       offer: "we pull bid-leveling data straight out of your estimating system, wherever your bid data lives, so your estimators stop re-keying line items by hand"
       cta: "want me to run it on one of your recent bids?"
+      cta_link_text: "see the output, not a pitch"   # free opener anchor
       subject_value_fallback: "bidding's hidden busywork"
       follow_ups:
         - delay_days: 4
