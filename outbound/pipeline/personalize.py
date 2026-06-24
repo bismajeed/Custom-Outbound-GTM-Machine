@@ -205,7 +205,7 @@ soft ask, reference their world (role/company), no signature."""
 # Smart punctuation -> plain ASCII. Em/en dashes and curly quotes both render as
 # mojibake in Excel and read as an "AI tell" in cold email; normalize them away.
 _PUNCT = {
-    "—": " - ", "–": "-", "‘": "'", "’": "'",
+    "—": " ", "–": "-", "‘": "'", "’": "'",
     "“": '"', "”": '"', "…": "...", " ": " ",
 }
 
@@ -213,6 +213,7 @@ _PUNCT = {
 def _normalize_punct(text: str) -> str:
     for bad, good in _PUNCT.items():
         text = text.replace(bad, good)
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)   # no space before punctuation
     return re.sub(r"\s{2,}", " ", text).strip()
 
 
