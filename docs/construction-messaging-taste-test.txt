@@ -1,0 +1,198 @@
+===============================================================================
+COLD-EMAIL MESSAGING TASTE TEST — CONSTRUCTION CAMPAIGN
+A/B vote log so the team (and the AI) write subjects/openers the way Bisma likes.
+Goal: emails that get OPENED and REPLIED to, not flat/salesy/spammy copy.
+===============================================================================
+
+HOW TO READ THIS
+  [PICKED]  = liked, would open / use
+  [out]     = rejected
+Each round below shows the exact question, every option offered, and the vote.
+The synthesized "taste profile" + approved example emails are at the bottom.
+
+
+-------------------------------------------------------------------------------
+ROUND 1 — first pass on subjects + opening lines
+-------------------------------------------------------------------------------
+
+Q1. SUBJECT LINES — which would you actually open?
+  [PICKED] your estimators aren't estimating      (provocative truth / reframe)
+  [out]    the bid you didn't get to              (loss-aversion / curiosity)
+  [PICKED] weird question about your bids          (casual curiosity gap)
+  [out]    bidding's dumbest hour                  (punchy/cutesy)
+
+Q2. SUBJECT LINES — second batch (different angles)
+  [out] what your estimators won't tell you        (insider/secret)
+  [out] before your next bid                        (timely/open loop)
+  [out] this keeps happening on bids                (vague curiosity)
+  [out] {first_name}, quick precon gut-check        (soft personalized)
+  VERDICT: "none of these is intriguing enough" — whole batch rejected.
+
+Q3. OPENING LINES (first sentence)
+  [PICKED] Provocative observation  — "Your estimators probably spend more time
+           re-keying numbers than actually pricing work."
+  [PICKED] Pattern-interrupt question — "Random question - how many hours a week
+           do your estimators lose just shuffling bid data between systems?"
+  [PICKED] Insider empathy — "Most precon leaders I talk to quietly can't stand
+           how much of bidding is still copy-paste."
+  [out]    Bold claim — "Bidding might be the last part of your operation still
+           running on manual data entry."
+
+
+-------------------------------------------------------------------------------
+ROUND 2 — refine the two winning lanes + mechanics
+-------------------------------------------------------------------------------
+
+Q1. PROVOCATIVE-REFRAME subjects
+  [PICKED] your estimators are doing data entry     (blunt reframe)
+  [PICKED] stop paying estimators to copy-paste     (waste-of-money angle)
+  [out]    precon's expensive busywork               (too vague)
+  [out]    estimating, minus the typing              (too light/outcome)
+
+Q2. CASUAL-CURIOSITY subjects
+  [out]    quick bid question (not a pitch)
+  [PICKED] the part of bidding nobody fixes          (open loop, known-but-ignored)
+  [PICKED] is this slowing your bids down too?       (peer comparing notes)
+  [out]    noticed something about precon teams       (teaser too vague)
+
+Q3. SUBJECT MECHANICS (format)
+  [out]    ultra-short lowercase: "estimators or typists?"   (too terse)
+  [PICKED] mid lowercase: "your estimators are basically typists"
+  [PICKED] company-named question: "is {company} bidding by hand?"
+  [PICKED] sentence case: "Your estimators deserve better than data entry"
+
+Q4. OPENING LINES (sharper variants)
+  [PICKED] Number-anchored — "Your estimators probably lose 8-12 hours a week
+           just moving bid data between systems."
+  [PICKED] Blunt half-truth — "Half of what your estimators do all day isn't
+           estimating - it's re-typing."
+  [PICKED] Direct question — "How much of your estimators' week is actual
+           estimating vs. data entry?"
+  [out]    Empathy + social proof  (lower priority than concrete/blunt/question)
+
+
+-------------------------------------------------------------------------------
+ROUND 3 — sharpest reframe, signal subjects, edginess, CTA
+-------------------------------------------------------------------------------
+
+Q1. SHARPEST reframe
+  [PICKED] you're paying estimators to copy-paste    (personal/financial waste)
+  [out]    your estimators are glorified typists      (too spicy / insult risk)
+  [out]    estimators shouldn't be doing data entry   (preachy)
+  [PICKED] data entry is eating your precon team      (vivid threat-to-team)
+
+Q2. SIGNAL-segment subjects (when we KNOW their tool/project)
+  [out]    your Procore data is half-trapped
+  [PICKED] Procore's costing your estimators hours    (names tool as culprit)
+  [out]    {company} runs Procore, bids still manual?
+  [out]    the Procore feature nobody uses for bids
+
+Q3. EDGINESS LIMIT
+  [PICKED] Provocative but respectful — point at the SYSTEM, not the people
+  [out]    Cheeky / a little spicy   (insult risk)
+  [out]    Neutral-curious only       (not enough punch)
+
+Q4. CLOSING ASK (CTA)
+  [PICKED] want me to run it on a recent bid?   (specific, show-don't-tell)
+  [out]    curious if your team's already solved this?
+  [out]    worth a quick look?
+  [out]    open to a 10-min teardown?
+
+
+-------------------------------------------------------------------------------
+ROUND 4 — body structure
+-------------------------------------------------------------------------------
+
+Q1. BODY LENGTH
+  [PICKED] 2 sentences (hook + ask)   (ruthlessly short)
+  [out]    3-4 short sentences
+  [out]    opener + concrete example + ask
+
+Q2. BODY SUBSTANCE (between hook and ask)
+  [out]    outcome only
+  [PICKED] one line on the mechanism   (briefly say HOW; builds credibility)
+  [out]    a specific number/proof      (no real metric yet — don't fabricate)
+
+Q3. GREETING
+  [out]    Hi {first_name},
+  [PICKED] {first_name} -               (punchy, peer-like)
+  [out]    no greeting
+
+Q4. P.S. LINE
+  [out]    no P.S.
+  [out]    P.S. with a soft human aside
+  [PICKED] P.S. with the actual CTA     (last thing they read)
+
+
+===============================================================================
+SYNTHESIZED TASTE PROFILE  (the rules to write by)
+===============================================================================
+
+SUBJECTS
+  - Concrete, provocative-but-RESPECTFUL waste reframes. Point at the system/
+    process, NEVER insult the people.
+  - No-signal lane:  "you're paying estimators to copy-paste",
+                     "data entry is eating your precon team",
+                     "your estimators are doing data entry",
+                     "stop paying estimators to copy-paste"
+  - Curiosity lane:  "the part of bidding nobody fixes",
+                     "is this slowing your bids down too?"
+  - Signal lane (tool known): name the tool as the culprit —
+                     "Procore's costing your estimators hours"
+  - Format: lowercase, mid-length (NOT ultra-short 2-word); company-named
+    questions OK; sentence-case OK.
+  - BANNED: "free", "pilot", flat labels ("rand* precon backlog"), cutesy
+    ("bidding's dumbest hour"), vague teasers, loss-aversion, em-dashes.
+
+OPENING LINES
+  - Blunt half-truth / number-anchored / direct question. Concrete > empathy.
+  - e.g. "Half of what your estimators do all day isn't estimating, it's
+    re-typing." / "How much of your estimators' week is actual estimating vs.
+    data entry?"
+
+BODY
+  - Ruthlessly short: hook + ONE line on the mechanism (how we pull the data) +
+    ask. No fabricated metrics.
+  - Greeting: "{first_name} -"
+  - CTA lives in a P.S.: "P.S. want me to run it on one of your recent bids?"
+
+DELIVERABILITY
+  - Plain ASCII punctuation (no em-dashes/curly quotes). Avoid spam words.
+
+
+===============================================================================
+APPROVED EXAMPLE EMAILS
+===============================================================================
+
+FREE segment ------------------------------------------------------------------
+Subject: you're paying estimators to copy-paste
+
+{first_name} -
+
+Half of what your estimators do all day isn't estimating, it's re-typing bid
+data between systems. we pull it straight out of your estimating system
+automatically so they get that time back.
+
+P.S. want me to run it on one of your recent bids?
+
+FREE segment (variant) --------------------------------------------------------
+Subject: data entry is eating your precon team
+
+{first_name} -
+
+How much of your estimators' week is actual estimating vs. moving line items by
+hand? we automate the data pull from wherever your bids live.
+
+P.S. want me to run it on a recent bid?
+
+SIGNAL segment (tool on file, e.g. Procore) -----------------------------------
+Subject: Procore's costing your estimators hours
+
+{first_name} -
+
+your team's already in Procore, but estimators probably still re-key line items
+by hand every bid. we pull that data straight out of Procore automatically.
+
+P.S. want me to run it on one of your recent bids?
+
+===============================================================================
