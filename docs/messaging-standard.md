@@ -72,3 +72,25 @@ P.S. want me to run it on a recent [unit of their work]?
 - Insults ("glorified typists") — aim at the system, not the people.
 - Empathy-soft openers — concrete/blunt out-performs.
 - Em-dashes — mojibake in spreadsheets + an AI tell.
+
+## Tracked link anchor text (CTA clicks)
+
+When a brief adds a tracked link (UTM) to the sequence, the anchor text follows the
+same voice. Rules: lowercase, 2-5 words, show-don't-tell or curiosity; NEVER "click
+here", "learn more", or "book a demo". One link per email; use a **different anchor
+on each touch**.
+
+- **Show-don't-tell (strongest):** see it on a real bid · watch it pull a bid apart
+  · see the 60-second teardown · see the before/after · what it looks like automated
+  · see the output, not a pitch
+- **Curiosity / open-loop:** see what i mean · here's the part nobody automates ·
+  the 2-minute version · see where the hours go
+- **Low-friction:** take a look · worth 60 seconds · peek at it here · judge it yourself
+- **Contrarian:** skip my pitch, see the output · don't take my word for it · prove me wrong
+- **Personalized (merge tag):** see it on a {{company_name}} bid · what this looks like for {{company_name}}
+
+**Deliverability:** a link in the cold opener (touch 1) is a strong spam signal,
+especially with click-tracking wrapping it in a redirect. Prefer links on touches
+2+, or **A/B the opener link 50/50** (the engine supports this via `cta_link` +
+Smartlead step variants: A = no link, B = link) to measure the impact before
+committing.
