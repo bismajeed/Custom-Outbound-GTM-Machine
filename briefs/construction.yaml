@@ -94,6 +94,27 @@ messaging:
     - delay_days: 5
       body: "last note from me — if speeding up bid leveling isn't a priority right now, no worries. if it is, i'll send a free teardown on a recent bid. just say the word."
 
+  # Per-segment overrides. The base copy above names Procore (accurate for the signal
+  # segment, whose leads we confirmed use a specific tool). The free_implementation
+  # segment has NO tool signal, so its copy must be TOOL-AGNOSTIC — never assert they
+  # use Procore. Overrides the opener offer + the touch-1 follow-up that named Procore;
+  # inherits everything else (opt_out, etc.). The signal first line still names the
+  # actual tool from the company's signal_summary.
+  segments:
+    free_implementation:
+      offer: "we pull bid-leveling data straight out of your estimating system — wherever your bid data lives — so your estimators stop re-keying line items by hand"
+      cta: "happy to run it free on one of your recent bids so you can see the output — worth a look?"
+      subject_value_fallback: "free bid teardown"
+      follow_ups:
+        - delay_days: 4
+          body: "quick follow-up — the teardown takes one of {{company_name}}'s recent bid sets and shows the bid-leveling fully extracted from your estimating files, no manual entry. want me to run one?"
+        - delay_days: 4
+          body: "circling back — most precon teams we talk to are still re-keying bid line items by hand on every job. the teardown shows what that looks like automated on one of {{company_name}}'s real bids. open to a quick look?"
+        - delay_days: 5
+          body: "still happy to put this in front of you, {{first_name}} — i can run the teardown on a recent bid and send back the extracted bid-leveling so you can judge it on your own data. no call needed to see the output."
+        - delay_days: 5
+          body: "last note from me — if speeding up bid leveling isn't a priority right now, no worries. if it is, i'll send a free teardown on a recent bid. just say the word."
+
 sending:
   daily_quota: 500
   days: [Tue, Wed, Thu]
