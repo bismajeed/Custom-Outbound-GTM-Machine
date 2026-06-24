@@ -37,7 +37,9 @@ def _rows(db: Database, sql: str, params: dict) -> list[dict]:
 
 def _write_csv(path: Path, rows: list[dict], columns: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    # utf-8-sig writes a BOM so Excel/Numbers reliably detect UTF-8 (without it they
+    # misread multi-byte chars like — as mojibake "Äî").
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore")
         writer.writeheader()
         for r in rows:
