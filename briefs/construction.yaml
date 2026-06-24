@@ -75,10 +75,10 @@ personalization:
 messaging:
   offer: "we pull bid-leveling data straight out of Procore so your estimators stop re-keying line items by hand"
   proof_point: ""                                    # leave empty until you have a real metric
-  cta: "happy to run it free on one of your recent bids so you can see the output — worth a look?"
+  cta: "want me to run it on one of your recent bids?"
   opt_out: "not relevant? just reply 'stop' and i'll close this out."
   # Subject A/B: variant A = company-anchored signal, variant B = this value/free-offer.
-  subject_value_fallback: "free bid teardown"
+  subject_value_fallback: "bidding's hidden busywork"
   # Automated follow-ups (sequence steps 2–5). {{first_name}} / {{company_name}}
   # merge vars only — no signal dependency, so they work in either campaign.
   # delay_days are calendar days between consecutive steps; with sending.days
@@ -102,9 +102,9 @@ messaging:
   # actual tool from the company's signal_summary.
   segments:
     free_implementation:
-      offer: "we pull bid-leveling data straight out of your estimating system — wherever your bid data lives — so your estimators stop re-keying line items by hand"
-      cta: "happy to run it free on one of your recent bids so you can see the output — worth a look?"
-      subject_value_fallback: "free bid teardown"
+      offer: "we pull bid-leveling data straight out of your estimating system, wherever your bid data lives, so your estimators stop re-keying line items by hand"
+      cta: "want me to run it on one of your recent bids?"
+      subject_value_fallback: "bidding's hidden busywork"
       follow_ups:
         - delay_days: 4
           body: "quick follow-up — the teardown takes one of {{company_name}}'s recent bid sets and shows the bid-leveling fully extracted from your estimating files, no manual entry. want me to run one?"

@@ -131,17 +131,17 @@ def _email_template(brief: Brief, cell: str) -> tuple[str, str]:
         subject = m.get("subject_template") or m.get("subject_value_fallback") \
             or f"a note for {{{{company_name}}}}"
         body = (
-            "<p>Hi {{first_name}},</p>"
+            "<p>{{first_name}} -</p>"
             f"<p>{opener}</p>"
             f"<p>{value_para}</p>"
-            f"<p>{cta}</p>"
+            f"<p>P.S. {cta}</p>"
             f"{_opt_out_html(m)}"
         )
         return subject, body
 
     # first_line mode
     body = (
-        "<p>Hi {{first_name}},</p>"
+        "<p>{{first_name}} -</p>"
         "<p>{{first_line}}</p>"
         f"<p>{value_para}</p>"
         f"<p>{cta}</p>"
@@ -152,7 +152,7 @@ def _email_template(brief: Brief, cell: str) -> tuple[str, str]:
 
 def _follow_up_html(body_text: str, m: dict) -> str:
     """Wrap a follow-up body string in HTML with the opt-out appended."""
-    return f"<p>Hi {{{{first_name}}}},</p><p>{body_text}</p>{_opt_out_html(m)}"
+    return f"<p>{{{{first_name}}}} -</p><p>{body_text}</p>{_opt_out_html(m)}"
 
 
 def ensure_sequence(brief: Brief, campaign_id: str, cell: str) -> None:
