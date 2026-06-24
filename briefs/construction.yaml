@@ -25,12 +25,20 @@ company_filters:
   exclude_keywords: [residential, "single family", "home builders", remodeling]
 
 contact_filters:
-  titles_any: [VP Preconstruction, Director Preconstruction, Preconstruction Manager,
-               VP Estimating, Director Estimating, Chief Estimator, Chief Operating Officer]
+  # Broadened titles: the narrow precon/estimating-only list matched 0-3 people per
+  # mid-market GC in Apollo (most don't title anyone "Chief Estimator"). These broader
+  # construction-leadership terms + the seniority filter surface 6-17 real decision-
+  # makers per company (COO, VP Preconstruction, CFO, VP Operations, Project Exec).
+  # Apollo person_titles is a contains-match, so single words like "Operations" catch
+  # "VP of Operations" etc. Company-level construction industry filter keeps them on-ICP.
+  titles_any: [Preconstruction, Pre-Construction, Estimating, Estimator,
+               Operations, Project Executive, Project Director, Construction Executive,
+               President, Owner, Principal, General Manager,
+               Chief Operating Officer, Chief Financial Officer, Vice President]
   seniority:  [Director, VP, C-Suite]
   countries:  [United States]
-  email_status: [verified, likely]      # skip catch-all
-  contacts_per_company: 3
+  email_status: [verified, likely]      # skip catch-all (high bounce risk)
+  contacts_per_company: 5               # broadened targeting -> aim for max leads
 
 signals:
   # job_postings drives the free, scrape-only job signal (signals_jobs.py):
@@ -51,7 +59,7 @@ signals:
   news:         {lookback_days: 120, themes_any: [groundbreaking, expansion, project, award]}
 
 hooks:
-  - {id: free_implementation, angle: "Free bid-extraction pilot tied to their Procore data"}
+  - {id: free_implementation, angle: "Free bid-extraction pilot tied to their estimating data"}
   - {id: pain_point,          angle: "The bid-leveling backlog on precon teams"}
   - {id: roi,                 angle: "Hours saved per bid cycle"}
 
@@ -67,10 +75,12 @@ personalization:
 messaging:
   offer: "we pull bid-leveling data straight out of Procore so your estimators stop re-keying line items by hand"
   proof_point: ""                                    # leave empty until you have a real metric
-  cta: "happy to run it free on one of your recent bids so you can see the output — worth a look?"
+  cta: "want me to run it on one of your recent bids?"
+  cta_link: "https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound"                 # opener (touch 1) tracked link
+  cta_link_text: "what it looks like automated"   # signal opener anchor
   opt_out: "not relevant? just reply 'stop' and i'll close this out."
   # Subject A/B: variant A = company-anchored signal, variant B = this value/free-offer.
-  subject_value_fallback: "free bid teardown"
+  subject_value_fallback: "bidding's hidden busywork"
   # Automated follow-ups (sequence steps 2–5). {{first_name}} / {{company_name}}
   # merge vars only — no signal dependency, so they work in either campaign.
   # delay_days are calendar days between consecutive steps; with sending.days
@@ -78,13 +88,32 @@ messaging:
   # ~18-day window (cumulative offsets: 0, 4, 8, 13, 18).
   follow_ups:
     - delay_days: 4
-      body: "quick follow-up — the teardown takes one of {{company_name}}'s recent bid sets and shows the bid-leveling fully extracted from Procore, no manual entry. want me to run one?"
+      body: "the teardown takes one of {{company_name}}'s recent bid sets and shows the bid-leveling pulled straight out of Procore, no manual entry. <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>see it on a real bid</a>."
     - delay_days: 4
-      body: "circling back — most precon teams we talk to are still re-keying bid line items by hand on every job. the teardown shows what that looks like automated on one of {{company_name}}'s real bids. open to a quick look?"
+      body: "most precon teams are still re-keying bid line items by hand on every job. here's that automated on a real bid: <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>see the 60-second teardown</a>."
     - delay_days: 5
-      body: "still happy to put this in front of you, {{first_name}} — i can run the teardown on a recent bid and send back the extracted bid-leveling so you can judge it on your own data. no call needed to see the output."
+      body: "different angle, {{first_name}}: don't take my word for it. <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>skip my pitch, see the output</a> on a sample bid and judge it on your own data."
     - delay_days: 5
-      body: "last note from me — if speeding up bid leveling isn't a priority right now, no worries. if it is, i'll send a free teardown on a recent bid. just say the word."
+      body: "last note from me. if speeding up bid leveling isn't a priority right now, no worries. if it is, <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>see the before/after</a> and decide for yourself."
+
+  # Per-segment overrides. Base copy names Procore (signal segment only). The
+  # free_implementation segment is TOOL-AGNOSTIC. Each touch carries the UTM link
+  # with a different anchor; the opener (touch 1) stays link-free for deliverability.
+  segments:
+    free_implementation:
+      offer: "we pull bid-leveling data straight out of your estimating system, wherever your bid data lives, so your estimators stop re-keying line items by hand"
+      cta: "want me to run it on one of your recent bids?"
+      cta_link_text: "see the output, not a pitch"   # free opener anchor
+      subject_value_fallback: "bidding's hidden busywork"
+      follow_ups:
+        - delay_days: 4
+          body: "the teardown takes one of {{company_name}}'s recent bid sets and shows the bid-leveling pulled straight out of your estimating system, no manual entry. <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>see what i mean</a>."
+        - delay_days: 4
+          body: "most precon teams are still re-keying bid line items by hand on every job. here's that automated on a real bid: <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>see the 60-second teardown</a>."
+        - delay_days: 5
+          body: "different angle, {{first_name}}: don't take my word for it. <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>skip my pitch, see the output</a> on a sample bid."
+        - delay_days: 5
+          body: "last note from me. if speeding up bid leveling isn't a priority, no worries. if it is, <a href='https://lastrev.com/industries/construction?utm_source=answerengine&utm_medium=email&utm_campaign=construction_outbound'>see the before/after</a> and judge it yourself."
 
 sending:
   daily_quota: 500

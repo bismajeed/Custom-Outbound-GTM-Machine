@@ -121,52 +121,62 @@ def _has_signal(company: Company) -> bool:
 def _first_line_prompt(contact: Contact, company: Company, hook: dict,
                        brief: Brief, m: dict, variant: str) -> str:
     has_signal = _has_signal(company)
-    company_short = (company.name.split()[0].lower() if company.name else "their")
-    # Variant A wants a signal-anchored subject, but only if a real signal exists;
-    # otherwise both variants fall back to the value style.
-    if variant == "A" and has_signal:
-        subject_instruction = (
-            "SUBJECT STYLE: signal — anchor on the COMPANY NAME plus their specific "
-            f"thing from the evidence, e.g. \"{company_short}'s addison build\" or "
-            f"\"{company_short} precon\". lowercase, 2-5 words. It must be obviously "
-            "about THEM — never a bare project name that reads as cryptic."
-        )
-    else:
-        fallback = m.get("subject_value_fallback", "")
-        subject_instruction = (
-            "SUBJECT STYLE: value — a concrete value or free-offer in plain words "
-            f"(e.g. \"{fallback}\"). lowercase, 2-5 words." if fallback else
-            "SUBJECT STYLE: value — a concrete value or free-offer in plain words. lowercase, 2-5 words."
-        )
+    role = contact.title or "leader"
+    # Subject + opener follow the engine-wide taste (see prompts/messaging.md). The
+    # two A/B variants are now two GOOD styles, not good-vs-salesy.
     if has_signal:
+        if variant == "A":
+            subject_instruction = (
+                "SUBJECT (signal style): name the specific tool / move / event from the "
+                "evidence as the angle or culprit, with intrigue. lowercase, 3-7 words. "
+                "NEVER a bare label like \"company topic\"."
+            )
+        else:
+            subject_instruction = (
+                "SUBJECT (reframe/curiosity): a provocative-but-respectful reframe of the "
+                "manual busywork this team does, OR a curiosity line naming a known-but-"
+                "unfixed problem. lowercase, 3-7 words. aim at the system, not the people."
+            )
         first_line_instruction = (
-            "FIRST LINE: one sentence grounded in the signal evidence above. Reference "
-            "the specific event/detail — do not invent anything beyond the evidence."
+            "FIRST LINE: one concrete sentence grounded ONLY in the signal evidence above - "
+            "a blunt half-truth, a rough number, or a direct question tied to that specific "
+            "signal. do not invent anything beyond the evidence."
         )
     else:
         value_angle = (m.get("value_angle") or m.get("offer") or
-                       "the outcome we help with").strip()
+                       "the manual busywork their team does").strip()
+        if variant == "A":
+            subject_instruction = (
+                "SUBJECT (waste reframe): a provocative-but-respectful reframe pointing at the "
+                "SYSTEM/process that makes this role's team do low-value manual work - never "
+                "insult the people. lowercase, 3-7 words."
+            )
+        else:
+            subject_instruction = (
+                "SUBJECT (curiosity): name a known-but-unfixed problem in their workflow as an "
+                "open loop or a peer-style question. lowercase, 3-7 words."
+            )
         first_line_instruction = (
-            "FIRST LINE: there is NO specific signal, so do NOT fabricate news. Instead "
-            f"write a relevant cold opener for a {contact.title or 'leader'} at "
-            f"{company.name} tied to our offer/value angle ({value_angle[:160]}) or a "
-            "pain point their role faces. Never leave it empty."
+            "FIRST LINE: there is NO specific signal, so do NOT fabricate facts and do NOT name "
+            "any specific software/vendor. Write a blunt half-truth, a rough number, or a direct "
+            f"question about the low-value manual work a {role} at {company.name} deals with, tied "
+            f"to our value angle ({value_angle[:160]}). concrete beats empathy. never leave it empty."
         )
     return f"""\
 Write the SUBJECT and the personalized FIRST LINE of a cold email to \
-{contact.first_name or 'the recipient'} ({contact.title or 'a leader'}) at {company.name}.
+{contact.first_name or 'the recipient'} ({role}) at {company.name}.
 
-Signal evidence (use ONLY this — do not invent facts):
+Signal evidence (use ONLY this - do not invent facts):
 {_evidence(company)}
 
 Campaign angle (hook): {hook.get('angle', '')}
 
 {subject_instruction}
-Never use a banned subject (e.g. "quick question"). See the subject rules above.
+Follow the subject + voice rules in the system prompt: no em-dashes, no "free"/"pilot", \
+no flat labels, no cutesy/puns, no exclamation marks.
 
 {first_line_instruction}
-Normal sentence case (capitalize the first word and proper nouns like company/product names — \
-NOT all-lowercase), under 25 words.
+Sentence case (capitalize the first word and proper nouns), under 25 words, plain ASCII (no em-dashes).
 
 Return STRICT JSON only: {{"subject": "...", "first_line": "..."}}"""
 
@@ -199,7 +209,7 @@ names). Do NOT write the body in all-lowercase. Under 90 words, conversational, 
 soft ask, reference their world (role/company), no signature."""
 
 
-# Smart punctuation -> plain ASCII. Em/en dashes and curly quotes render as
+# Smart punctuation -> plain ASCII. Em/en dashes and curly quotes both render as
 # mojibake in Excel and read as an "AI tell" in cold email; normalize them away.
 _PUNCT = {
     "—": " ", "–": "-", "‘": "'", "’": "'",

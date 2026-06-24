@@ -104,8 +104,11 @@ def _opt_out_html(m: dict) -> str:
     return f"<p style=\"font-size:12px;color:#888\">{opt_out}</p>"
 
 
-def _email_template(brief: Brief, cell: str) -> tuple[str, str]:
+def _email_template(brief: Brief, cell: str, with_link: bool = True) -> tuple[str, str]:
     """Return (subject, html_body) for the campaign's step-1 email.
+
+    ``with_link``: when False, the opener P.S. is plain text (no tracked link) even
+    if the brief sets cta_link. Used to build the no-link A/B variant of the opener.
 
     - full mode: the whole body is the generated {{body}}.
     - template mode (no signal): fixed opener + offer + CTA, merge vars only.
@@ -124,6 +127,10 @@ def _email_template(brief: Brief, cell: str) -> tuple[str, str]:
     proof = m.get("proof_point", "")
     cta = m.get("cta", "worth a quick look?")
     value_para = f"{offer}. {proof}." if proof else f"{offer}."
+    # Opener CTA: a tracked hyperlink when the brief sets cta_link, else plain text.
+    cta_link = m.get("cta_link")
+    cta_html = (f"<a href='{cta_link}'>{m.get('cta_link_text') or cta}</a>"
+                if (cta_link and with_link) else cta)
 
     if brief.personalization_mode == "template":
         opener = m.get("template_opener",
@@ -131,20 +138,20 @@ def _email_template(brief: Brief, cell: str) -> tuple[str, str]:
         subject = m.get("subject_template") or m.get("subject_value_fallback") \
             or f"a note for {{{{company_name}}}}"
         body = (
-            "<p>Hi {{first_name}},</p>"
+            "<p>{{first_name}} -</p>"
             f"<p>{opener}</p>"
             f"<p>{value_para}</p>"
-            f"<p>{cta}</p>"
+            f"<p>P.S. {cta_html}</p>"
             f"{_opt_out_html(m)}"
         )
         return subject, body
 
     # first_line mode
     body = (
-        "<p>Hi {{first_name}},</p>"
+        "<p>{{first_name}} -</p>"
         "<p>{{first_line}}</p>"
         f"<p>{value_para}</p>"
-        f"<p>{cta}</p>"
+        f"<p>P.S. {cta_html}</p>"
         f"{_opt_out_html(m)}"
     )
     return "{{subject}}", body
@@ -152,7 +159,7 @@ def _email_template(brief: Brief, cell: str) -> tuple[str, str]:
 
 def _follow_up_html(body_text: str, m: dict) -> str:
     """Wrap a follow-up body string in HTML with the opt-out appended."""
-    return f"<p>Hi {{{{first_name}}}},</p><p>{body_text}</p>{_opt_out_html(m)}"
+    return f"<p>{{{{first_name}}}} -</p><p>{body_text}</p>{_opt_out_html(m)}"
 
 
 def ensure_sequence(brief: Brief, campaign_id: str, cell: str) -> None:
@@ -173,13 +180,29 @@ def ensure_sequence(brief: Brief, campaign_id: str, cell: str) -> None:
         pass
 
     m = brief.messaging_for(cell)
-    subject, body = _email_template(brief, cell)
-    sequences = [{
-        "seq_number": 1,
-        "seq_delay_details": {"delay_in_days": 0},
-        "subject": subject,
-        "email_body": body,
-    }]
+    # Opener (step 1). When the brief sets cta_link, A/B test the opener link 50/50
+    # via Smartlead step variants: A = no link (safer deliverability), B = with the
+    # tracked link. Otherwise a single opener.
+    if m.get("cta_link"):
+        subj_a, body_a = _email_template(brief, cell, with_link=False)
+        subj_b, body_b = _email_template(brief, cell, with_link=True)
+        step1 = {
+            "seq_number": 1,
+            "seq_delay_details": {"delay_in_days": 0},
+            "seq_variants": [
+                {"subject": subj_a, "email_body": body_a, "variant_label": "A"},
+                {"subject": subj_b, "email_body": body_b, "variant_label": "B"},
+            ],
+        }
+    else:
+        subject, body = _email_template(brief, cell)
+        step1 = {
+            "seq_number": 1,
+            "seq_delay_details": {"delay_in_days": 0},
+            "subject": subject,
+            "email_body": body,
+        }
+    sequences = [step1]
     # Follow-ups (per-segment). Empty subject => Smartlead threads it under step 1.
     for i, step in enumerate(m.get("follow_ups", []), start=2):
         sequences.append({
