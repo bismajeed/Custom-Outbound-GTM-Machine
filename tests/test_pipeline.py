@@ -164,3 +164,59 @@ def test_messaging_for_merges_segment_override():
     # ...but inherits base follow_ups and never leaks the raw segments map.
     assert free["follow_ups"] == base["follow_ups"]
     assert "segments" not in free and "segments" not in base
+
+
+# --- enrichment credit-guard (early-exit on bad-data companies) ----------------
+
+class _FakeResp:
+    def __init__(self, people):
+        self._people = people
+    def json(self):
+        return {"people": self._people}
+
+
+def _people(n):
+    return [{"id": str(i), "first_name": f"A{i}", "last_name": "X", "title": "VP"}
+            for i in range(n)]
+
+
+def test_enrich_early_exit_on_bad_data(monkeypatch):
+    """All-catch-all company: stop after MAX_CONSECUTIVE_MISSES reveals, not all 20."""
+    from outbound.sources import apollo
+    b = load_brief("construction")
+    monkeypatch.setattr(apollo, "request_with_retry", lambda *a, **k: _FakeResp(_people(20)))
+    calls = {"n": 0}
+    def fake_reveal(pid):
+        calls["n"] += 1
+        return ("x@catchall.com", "unknown")          # never keepable
+    monkeypatch.setattr(apollo, "_reveal_email", fake_reveal)
+    out = apollo.enrich_contacts(Company(domain="bad.com", name="Bad"), b)
+    assert out == []
+    assert calls["n"] == apollo.MAX_CONSECUTIVE_MISSES   # stopped early, not 20
+
+
+def test_enrich_keeps_all_good_leads_no_waste(monkeypatch):
+    """Good-data company: get `want` leads with no wasted reveals."""
+    from outbound.sources import apollo
+    b = load_brief("construction")                       # want = 5
+    monkeypatch.setattr(apollo, "request_with_retry", lambda *a, **k: _FakeResp(_people(20)))
+    calls = {"n": 0}
+    def fake_reveal(pid):
+        calls["n"] += 1
+        return (f"user{calls['n']}@good.com", "verified")
+    monkeypatch.setattr(apollo, "_reveal_email", fake_reveal)
+    out = apollo.enrich_contacts(Company(domain="good.com", name="Good"), b)
+    assert len(out) == b.contacts_per_company
+    assert calls["n"] == b.contacts_per_company          # no reveals beyond what's needed
+
+
+def test_enrich_miss_counter_resets_on_hit(monkeypatch):
+    """A keepable email inside the miss window resets the counter (no lead dropped)."""
+    from outbound.sources import apollo
+    b = load_brief("construction")
+    monkeypatch.setattr(apollo, "request_with_retry", lambda *a, **k: _FakeResp(_people(30)))
+    seq = iter([("a@x.com", "verified")] + [("c@catch.com", "unknown")] * 4
+               + [("b@x.com", "verified")] + [("c@catch.com", "unknown")] * 20)
+    monkeypatch.setattr(apollo, "_reveal_email", lambda pid: next(seq))
+    out = apollo.enrich_contacts(Company(domain="mix.com", name="Mix"), b)
+    assert len(out) == 2   # both verified kept despite 4 catch-alls between them
