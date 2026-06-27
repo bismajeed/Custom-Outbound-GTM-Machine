@@ -69,6 +69,30 @@ def segment_for(company: Company) -> str:
     return SEGMENT_SIGNAL if (company.signal_summary or "").strip() else SEGMENT_NONE
 
 
+# Free-segment (no-signal) subjects collapsed onto ~2 molds and repeated. To
+# spread them out, each lead is pinned to ONE distinct subject FRAME (by email
+# hash) so the model is steered toward a different shape every time. The A/B
+# variant still tilts waste-vs-curiosity; the frame decides the structure.
+_NO_SIGNAL_SUBJECT_FRAMES = [
+    "the hidden cost of a manual {role_short} workflow, stated as a blunt fact",
+    "a rough number or percentage of time lost to the low-value manual work",
+    "a peer-style question a {role_short} would actually ask themselves",
+    "an open loop: a known-but-unfixed snag in their day, left hanging",
+    "a wry observation about the busywork the SYSTEM forces on this team",
+    "a before/after contrast (how it's done now vs how it could be), terse",
+    "a 'why is X still done by hand' style provocation aimed at the process",
+    "a small, specific moment of friction in their week, named plainly",
+]
+
+
+def _no_signal_subject_frame(email: str, role: str) -> str:
+    role_short = (role or "leader").split()[-1].lower()
+    frame = _NO_SIGNAL_SUBJECT_FRAMES[
+        zlib.crc32(b"sframe:" + email.encode("utf-8")) % len(_NO_SIGNAL_SUBJECT_FRAMES)
+    ]
+    return frame.format(role_short=role_short)
+
+
 def subject_variant(email: str) -> str:
     """Deterministic 50/50 A/B split for subject style, by email.
 
@@ -145,17 +169,15 @@ def _first_line_prompt(contact: Contact, company: Company, hook: dict,
     else:
         value_angle = (m.get("value_angle") or m.get("offer") or
                        "the manual busywork their team does").strip()
-        if variant == "A":
-            subject_instruction = (
-                "SUBJECT (waste reframe): a provocative-but-respectful reframe pointing at the "
-                "SYSTEM/process that makes this role's team do low-value manual work - never "
-                "insult the people. lowercase, 3-7 words."
-            )
-        else:
-            subject_instruction = (
-                "SUBJECT (curiosity): name a known-but-unfixed problem in their workflow as an "
-                "open loop or a peer-style question. lowercase, 3-7 words."
-            )
+        frame = _no_signal_subject_frame(contact.email, role)
+        tilt = ("lean provocative - aim at the SYSTEM/process, never insult the people"
+                if variant == "A" else
+                "lean curious - leave a hook open, peer-to-peer, never salesy")
+        subject_instruction = (
+            f"SUBJECT: write it as {frame}. {tilt}. lowercase, 3-7 words. "
+            "make it DISTINCT - do not reuse a stock phrasing you'd use for another "
+            "company; vary the wording so no two subjects read alike."
+        )
         first_line_instruction = (
             "FIRST LINE: there is NO specific signal, so do NOT fabricate facts and do NOT name "
             "any specific software/vendor. Write a blunt half-truth, a rough number, or a direct "
