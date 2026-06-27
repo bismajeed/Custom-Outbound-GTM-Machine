@@ -28,6 +28,13 @@ _EMPLOYEE_BUCKETS = [
 # Apollo email-status values that we consider deliverable.
 _GOOD_EMAIL_STATUS = {"verified", "likely", "likely_to_engage", "guessed"}
 
+# Credit guard: each email reveal costs 1 Apollo credit, and we only learn an email
+# is catch-all/unverified AFTER paying. At a "bad-data" company every reveal comes
+# back catch-all, so blindly revealing all candidates burns ~20 credits for 0 kept
+# leads. Stop after this many consecutive non-keepable reveals — deliverable emails
+# appear early in Apollo's list, so this drops ~no real leads while killing the waste.
+MAX_CONSECUTIVE_MISSES = 6
+
 
 def _headers() -> dict[str, str]:
     key = os.environ.get("APOLLO_API_KEY", "")
@@ -389,20 +396,27 @@ def enrich_contacts(company: Company, brief: Brief) -> list[Contact]:
     )
     people = resp.json().get("people") or []
 
+    max_misses = int(cf.get("enrich_max_consecutive_misses", MAX_CONSECUTIVE_MISSES))
     out: list[Contact] = []
     seen: set[str] = set()
+    misses = 0  # consecutive reveals that didn't yield a keepable contact
     for person in people:
         if len(out) >= want:
             break
+        if misses >= max_misses:
+            break  # bad-data company: stop paying to confirm catch-all after catch-all
         pid = person.get("id")
         if not pid:
-            continue
-        email, status = _reveal_email(pid)
+            continue  # no reveal spent, not a miss
+        email, status = _reveal_email(pid)  # 1 Apollo credit
         if not email or "@" not in email or email in seen:
+            misses += 1
             continue
         if status and status not in allowed:
-            continue  # skip catch-all / unknown
+            misses += 1
+            continue  # catch-all / unknown -> paid for, not kept
         seen.add(email)
+        misses = 0  # a real keepable email resets the run
         out.append(Contact(
             email=email,
             company_domain=company.domain,
